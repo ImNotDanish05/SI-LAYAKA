@@ -10,7 +10,7 @@ Node.js >=18; Vercel Serverless Functions; Supabase Postgres via `@supabase/supa
 ## Commands
 - Build frontend: `powershell -ExecutionPolicy Bypass -File build.ps1`
 - Package scripts: none defined in `package.json`.
-- Tests: none defined; `check_encoding.js` is an ad-hoc utility.
+- Tests: none defined; `tools/checks/check_encoding.js` is an ad-hoc utility.
 
 ## Structure map
 - `api/` — Vercel endpoints; `rpc.js` is the primary POST RPC dispatcher.
@@ -18,6 +18,9 @@ Node.js >=18; Vercel Serverless Functions; Supabase Postgres via `@supabase/supa
 - `supabase/` — incremental database migrations.
 - `supabase_schema.sql` — database schema reference.
 - `templates/` — DOCX templates.
+- `tools/checks/` — manual project checks.
+- `tools/migrations/` — manually run data-migration scripts.
+- `.note/` — non-runtime plans and retained unused reference assets.
 - `*.gs v2.txt`, `*.txt` — Google Apps Script and frontend source fragments.
 - `build.ps1` — merges source fragments into `public/index.html`.
 - `appsscript.json` — Apps Script deployment configuration.
@@ -37,7 +40,8 @@ Node.js >=18; Vercel Serverless Functions; Supabase Postgres via `@supabase/supa
 ## Known gotchas
 - No README, package scripts, linter, formatter, or automated tests are currently present.
 - `api/rpc.js` and frontend source fragments are large: search for the relevant function before reading.
-- `RENCANA_OPTIMASI.md` describes a proposed concurrency plan; do not treat it as implemented behavior without code verification.
+- `.note/plans/RENCANA_OPTIMASI.md` describes a proposed concurrency plan; do not treat it as implemented behavior without code verification.
 
 ## Changelog (newest first, 1 line per entry, NOT a diff)
+- 2026-09-18: Organized root-level non-runtime files into `.note/` and `tools/`; removed Windows metadata.
 - 2026-09-18: Added initial agent context from a high-level first scan; awaiting user review.
