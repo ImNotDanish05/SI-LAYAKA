@@ -11671,54 +11671,92 @@ const methods = {
         .eq('status', 'Selesai');
       const selesaiSet = new Set((usulanSelesai || []).map(r => String(r.nip).trim()));
 
-      // 2. Ambil dari usulan_kontrak_baru yang statusnya Draft atau belum Selesai
-      const { data: listBaru, error: errBaru } = await db.from('usulan_kontrak_baru')
-        .select('*')
-        .order('created_at', { ascending: false });
-
       const resultMap = new Map();
 
-      if (!errBaru && listBaru) {
-        for (const r of listBaru) {
-          const nipTrim = String(r.nip || '').trim();
-          if (nipTrim && r.status !== 'Selesai' && !selesaiSet.has(nipTrim)) {
-            resultMap.set(nipTrim, {
-              nip: nipTrim,
-              tmp_lhr: r.tmp_lhr || '',
-              tgl_lhr: r.tgl_lhr || '',
-              nama_lengkap: r.nama_lengkap || '',
-              layanan: r.layanan || '',
-              sub_menu: r.sub_menu || '',
-              status: r.status || 'Draft',
-              created_at: r.created_at
-            });
+      // 2. Ambil dari usulan_kontrak_baru yang statusnya Draft atau belum Selesai
+      try {
+        const { data: listBaru, error: errBaru } = await db.from('usulan_kontrak_baru')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!errBaru && listBaru) {
+          for (const r of listBaru) {
+            const fd = r.form_data || {};
+            const nipTrim = String(r.nip || fd.nip || '').trim();
+            const rStatus = String(r.status || fd.status || 'Draft').trim();
+            if (nipTrim && rStatus.toLowerCase() !== 'selesai' && !selesaiSet.has(nipTrim)) {
+              resultMap.set(nipTrim, {
+                nip: nipTrim,
+                tmp_lhr: r.tmp_lhr || fd.tmp_lhr || '',
+                tgl_lhr: r.tgl_lhr || fd.tgl_lhr || '',
+                nama_lengkap: r.nama_lengkap || fd.nama_lengkap || '',
+                layanan: r.layanan || fd.layanan || '',
+                sub_menu: r.sub_menu || fd.sub_menu || '',
+                status: rStatus,
+                created_at: r.created_at
+              });
+            }
           }
+        } else if (errBaru) {
+          console.warn('[getDraftNipBelumDigunakan] errBaru usulan_kontrak_baru:', errBaru.message);
         }
+      } catch (eBaru) {
+        console.warn('[getDraftNipBelumDigunakan] fetch usulan_kontrak_baru error:', eBaru.message);
       }
 
-      // 3. Ambil juga dari data_utama jika ada NIP yang belum ada nama_lengkap (draft awal)
-      const { data: emps } = await db.from('data_utama')
-        .select('nip, tmp_lhr, tgl_lhr, nama_lengkap, unit_es_ii, created_at')
-        .or('nama_lengkap.is.null,nama_lengkap.eq.""')
-        .order('created_at', { ascending: false })
-        .limit(30);
-
-      if (emps) {
-        for (const e of emps) {
-          const nipTrim = String(e.nip || '').trim();
-          if (nipTrim && !selesaiSet.has(nipTrim) && !resultMap.has(nipTrim)) {
-            resultMap.set(nipTrim, {
-              nip: nipTrim,
-              tmp_lhr: e.tmp_lhr || '',
-              tgl_lhr: e.tgl_lhr || '',
-              nama_lengkap: e.nama_lengkap || '',
-              layanan: layanan || '',
-              sub_menu: sub_menu || '',
-              status: 'Draft',
-              created_at: e.created_at
-            });
+      // 3. Ambil juga dari draft_nip_non_asn jika ada data CPTU tersimpan
+      try {
+        const { data: listCptu } = await db.from('draft_nip_non_asn')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (listCptu) {
+          for (const c of listCptu) {
+            const fd = c.form_data || {};
+            const cNip = String(c.nip || fd.nip || '').trim();
+            const cStatus = String(c.status || fd.status || 'Draft').trim();
+            if (cNip && cStatus.toLowerCase() !== 'selesai' && !selesaiSet.has(cNip) && !resultMap.has(cNip)) {
+              resultMap.set(cNip, {
+                nip: cNip,
+                tmp_lhr: c.tmp_lhr || fd.tmp_lhr || '',
+                tgl_lhr: c.tgl_lhr || fd.tgl_lhr || '',
+                nama_lengkap: c.nama_lengkap || fd.nama_lengkap || '',
+                layanan: c.layanan || fd.layanan || '',
+                sub_menu: c.sub_menu || fd.sub_menu || 'Calon Pegawai Tetap Undip NON ASN',
+                status: cStatus,
+                created_at: c.created_at
+              });
+            }
           }
         }
+      } catch (_) {}
+
+      // 4. Ambil juga dari data_utama jika ada NIP yang belum ada nama_lengkap (draft awal)
+      try {
+        const { data: emps } = await db.from('data_utama')
+          .select('nip, tmp_lhr, tgl_lhr, nama_lengkap, unit_es_ii, created_at')
+          .or('nama_lengkap.is.null,nama_lengkap.eq.')
+          .order('created_at', { ascending: false })
+          .limit(30);
+
+        if (emps) {
+          for (const e of emps) {
+            const nipTrim = String(e.nip || '').trim();
+            if (nipTrim && !selesaiSet.has(nipTrim) && !resultMap.has(nipTrim)) {
+              resultMap.set(nipTrim, {
+                nip: nipTrim,
+                tmp_lhr: e.tmp_lhr || '',
+                tgl_lhr: e.tgl_lhr || '',
+                nama_lengkap: e.nama_lengkap || '',
+                layanan: layanan || '',
+                sub_menu: sub_menu || '',
+                status: 'Draft',
+                created_at: e.created_at
+              });
+            }
+          }
+        }
+      } catch (eDu) {
+        console.warn('[getDraftNipBelumDigunakan] data_utama err:', eDu.message);
       }
 
       return {
