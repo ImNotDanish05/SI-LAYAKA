@@ -8709,6 +8709,9 @@ function confirmAndGoToFormWithNip(nip, tmpLhr, tglLhr, tmtBulan, extraData) {
     nipEl.removeAttribute('readonly');
   }
 
+  const baseNipEl = document.getElementById('kontrak_nip');
+  if (baseNipEl) baseNipEl.value = nip;
+
   const btnHapusNip = document.getElementById('kontrak_btnHapusDraftNip');
   if (btnHapusNip) {
     btnHapusNip.style.display = 'inline-block';
@@ -8719,6 +8722,19 @@ function confirmAndGoToFormWithNip(nip, tmpLhr, tglLhr, tmtBulan, extraData) {
 
   const tglLhrEl = document.getElementById('kontrak_tglLhr');
   if (tglLhrEl && tglLhr) tglLhrEl.value = tglLhr;
+
+  // Jika NIP draft ini sebelumnya sudah memiliki data tersimpan (misal nama), isi ke form
+  const foundDraft = (typeof POPUP1_DRAFT_NIP_CACHE !== 'undefined' && Array.isArray(POPUP1_DRAFT_NIP_CACHE))
+    ? POPUP1_DRAFT_NIP_CACHE.find(d => String(d.nip).trim() === String(nip).trim())
+    : null;
+  if (foundDraft) {
+    if (!tmpLhr && foundDraft.tmp_lhr && tmpLhrEl) tmpLhrEl.value = foundDraft.tmp_lhr;
+    if (!tglLhr && foundDraft.tgl_lhr && tglLhrEl) tglLhrEl.value = pensiunToDateInputValue(foundDraft.tgl_lhr);
+    if (foundDraft.nama_lengkap) {
+      const namaEl = document.getElementById('kontrak_namaLengkap');
+      if (namaEl && !namaEl.value) namaEl.value = foundDraft.nama_lengkap;
+    }
+  }
 
   const isDosenParuhWaktu = (kontrakSelectedLayanan === 'Kontrak Dosen' && kontrakSelectedSubMenu === 'Kontrak Paruh Waktu');
   const upahWrap = document.getElementById('kontrak_besaranUpahWrap');
@@ -8953,22 +8969,23 @@ function kontrakBuildFormData_() {
   const isCptu = (kontrakSelectedSubMenu === 'Calon Pegawai Tetap Undip NON ASN');
   const now = new Date();
   const data = {
-    nip: document.getElementById('kontrak_nipManual')?.value || '',
-    nik: document.getElementById('kontrak_nik')?.value || '',
-    nama_lengkap: document.getElementById('kontrak_namaLengkap')?.value || '',
-    tmp_lhr: document.getElementById('kontrak_tmpLhr')?.value || '',
+    nip: (document.getElementById('kontrak_nipManual')?.value || document.getElementById('kontrak_nip')?.value || '').trim(),
+    nik: document.getElementById('kontrak_nik')?.value?.trim() || '',
+    nama_lengkap: document.getElementById('kontrak_namaLengkap')?.value?.trim() || '',
+    tmp_lhr: document.getElementById('kontrak_tmpLhr')?.value?.trim() || '',
     tgl_lhr: document.getElementById('kontrak_tglLhr')?.value || '',
-    pendidikan: document.getElementById('kontrak_pendidikan')?.value || '',
-    jurusan: document.getElementById('kontrak_jurusan')?.value || '',
-    alamat: document.getElementById('kontrak_alamat')?.value || '',
-    unit_es_ii: document.getElementById('kontrak_unitEsIi')?.value || '',
-    jabatan: document.getElementById('kontrak_jabatan')?.value || '',
-    nomor_telepon: document.getElementById('kontrak_nomorTelepon')?.value || '',
-    nomor_surat_perjanjian: document.getElementById('kontrak_nomorSurat')?.value || '',
-    atasan_nip: document.getElementById('kontrak_atasanNip')?.value || '',
-    atasan_nama: document.getElementById('kontrak_atasanNama')?.value || '',
-    nama_atasan: document.getElementById('kontrak_atasanNama')?.value || '',
-    nip_atasan: document.getElementById('kontrak_atasanNip')?.value || '',
+    pendidikan: document.getElementById('kontrak_pendidikan')?.value?.trim() || '',
+    jurusan: document.getElementById('kontrak_jurusan')?.value?.trim() || '',
+    alamat: document.getElementById('kontrak_alamat')?.value?.trim() || '',
+    unit_es_ii: document.getElementById('kontrak_unitEsIi')?.value?.trim() || '',
+    jabatan: document.getElementById('kontrak_jabatan')?.value?.trim() || '',
+    nomor_telepon: document.getElementById('kontrak_nomorTelepon')?.value?.trim() || '',
+    nomor_surat_perjanjian: document.getElementById('kontrak_nomorSurat')?.value?.trim() || '',
+    besaran_upah: document.getElementById('kontrak_besaranUpah')?.value?.trim() || '',
+    atasan_nip: document.getElementById('kontrak_atasanNip')?.value?.trim() || '',
+    atasan_nama: document.getElementById('kontrak_atasanNama')?.value?.trim() || '',
+    nama_atasan: document.getElementById('kontrak_atasanNama')?.value?.trim() || '',
+    nip_atasan: document.getElementById('kontrak_atasanNip')?.value?.trim() || '',
     mode: kontrakSelectedMode || 'baru',
     jenis_usulan: (kontrakSelectedMode === 'perpanjangan') ? 'Perpanjangan' : 'Baru',
     // REF (konfirmasi Titto): jangka_waktu_kontrak TIDAK lagi dikirim dari
@@ -9422,6 +9439,10 @@ async function runKontrakPreviewGenerate(mode) {
     setBtnLoading(btn, false, 'Generate');
     if (res && res.success) {
       showToast('success', res.message || 'Dokumen Kontrak berhasil dibuat.');
+      const genNip = String(payload.formData?.nip || payload.targetNip || '').trim();
+      if (genNip && typeof POPUP1_DRAFT_NIP_CACHE !== 'undefined' && Array.isArray(POPUP1_DRAFT_NIP_CACHE)) {
+        POPUP1_DRAFT_NIP_CACHE = POPUP1_DRAFT_NIP_CACHE.filter(item => String(item.nip).trim() !== genNip);
+      }
       openKontrakResultModal(res);
     } else {
       showToast('error', res?.message || 'Gagal generate Kontrak.');
@@ -9433,6 +9454,10 @@ async function runKontrakPreviewGenerate(mode) {
           setBtnLoading(btn, false, 'Generate');
           if (!res.success) { showToast('error', res.message); return; }
           showToast('success', res.message);
+          const genNip = String(payload.formData?.nip || payload.targetNip || '').trim();
+          if (genNip && typeof POPUP1_DRAFT_NIP_CACHE !== 'undefined' && Array.isArray(POPUP1_DRAFT_NIP_CACHE)) {
+            POPUP1_DRAFT_NIP_CACHE = POPUP1_DRAFT_NIP_CACHE.filter(item => String(item.nip).trim() !== genNip);
+          }
           openKontrakResultModal(res);
         })
         .withFailureHandler(err => {

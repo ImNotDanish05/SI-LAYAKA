@@ -11666,10 +11666,42 @@ const methods = {
 
     try {
       // 1. Ambil NIP yang sudah selesai agar tidak dimunculkan lagi
-      const { data: usulanSelesai } = await db.from('usulan_kontrak')
-        .select('nip')
-        .eq('status', 'Selesai');
-      const selesaiSet = new Set((usulanSelesai || []).map(r => String(r.nip).trim()));
+      const selesaiSet = new Set();
+      try {
+        const { data: usulanSelesai } = await db.from('usulan_kontrak')
+          .select('nip')
+          .eq('status', 'Selesai');
+        if (usulanSelesai) {
+          usulanSelesai.forEach(r => {
+            const n = String(r.nip || '').trim();
+            if (n) selesaiSet.add(n);
+          });
+        }
+      } catch (_) {}
+
+      try {
+        const { data: ukbSelesai } = await db.from('usulan_kontrak_baru')
+          .select('nip, form_data')
+          .eq('status', 'Selesai');
+        if (ukbSelesai) {
+          ukbSelesai.forEach(u => {
+            const uNip = String(u.nip || (u.form_data && u.form_data.nip) || '').trim();
+            if (uNip) selesaiSet.add(uNip);
+          });
+        }
+      } catch (_) {}
+
+      try {
+        const { data: cptuSelesai } = await db.from('draft_nip_non_asn')
+          .select('nip')
+          .eq('status', 'Selesai');
+        if (cptuSelesai) {
+          cptuSelesai.forEach(c => {
+            const cNip = String(c.nip || '').trim();
+            if (cNip) selesaiSet.add(cNip);
+          });
+        }
+      } catch (_) {}
 
       const resultMap = new Map();
 
@@ -12080,7 +12112,7 @@ const methods = {
     const { layanan, subMenu, sub_menu, formData, form_data, templateFileId, templateId, tipe } = payload || {};
 
     const actualFormData = formData || form_data || {};
-    const cleanNip = String(actualFormData.nip || '').trim();
+    const cleanNip = String(actualFormData.nip || payload.targetNip || payload.nip || '').trim();
     const namaLengkap = String(actualFormData.nama_lengkap || '').trim();
     const targetSubMenu = subMenu || sub_menu || '';
     if (!cleanNip) return { success: false, message: 'NIP wajib diisi.' };
@@ -12102,12 +12134,21 @@ const methods = {
         jangkaWaktuStr = (durasiBulan === 12) ? '1 (satu) tahun' : (durasiBulan > 0 ? `${durasiBulan} bulan` : '');
       }
 
+      const inferredLayanan = layanan || ((cleanNip.length >= 10 && cleanNip.slice(8, 10) === '01') ? 'Kontrak Dosen' : 'Kontrak Tendik');
+      const safeTglLhr = (actualFormData.tgl_lhr && String(actualFormData.tgl_lhr).trim()) ? String(actualFormData.tgl_lhr).trim() : null;
+      const safeFormData = Object.assign({}, actualFormData, {
+        status: 'Selesai',
+        nip: cleanNip,
+        nama_lengkap: namaLengkap,
+        layanan: inferredLayanan,
+        sub_menu: targetSubMenu
+      });
+
       const usulanKontrakBaruRecord = {
         nip: cleanNip,
-        nik: actualFormData.nik || '',
         nama_lengkap: namaLengkap,
         tmp_lhr: actualFormData.tmp_lhr || '',
-        tgl_lhr: actualFormData.tgl_lhr || null,
+        tgl_lhr: safeTglLhr,
         pendidikan: actualFormData.pendidikan || '',
         jurusan: actualFormData.jurusan || '',
         unit_es_ii: actualFormData.unit_es_ii || '',
@@ -12115,76 +12156,126 @@ const methods = {
         alamat: actualFormData.alamat || '',
         nomor_telepon: actualFormData.nomor_telepon || '',
         nomor_surat_perjanjian: actualFormData.nomor_surat_perjanjian || '',
-        tmt_bulan: actualFormData.tmt_bulan || '',
-        tmt_tahun: actualFormData.tmt_tahun || '',
-        tst_bulan: actualFormData.tst_bulan || '',
-        tst_tahun: actualFormData.tst_tahun || '',
+        tmt_bulan: String(actualFormData.tmt_bulan || ''),
+        tmt_tahun: String(actualFormData.tmt_tahun || ''),
+        tst_bulan: String(actualFormData.tst_bulan || ''),
+        tst_tahun: String(actualFormData.tst_tahun || ''),
         jangka_waktu: actualFormData.jangka_waktu || jangkaWaktuStr,
         besaran_upah: actualFormData.besaran_upah || '',
-        layanan: layanan || 'Kontrak Tendik',
+        layanan: inferredLayanan,
         sub_menu: targetSubMenu,
-        form_data: actualFormData,
+        form_data: safeFormData,
         status: 'Selesai',
         diajukan_oleh_nip: decoded.nip
       };
+
       try {
         const { data: existUkb } = await db.from('usulan_kontrak_baru').select('nip').eq('nip', cleanNip).maybeSingle();
+        let resUkb = null;
         if (existUkb) {
-          await db.from('usulan_kontrak_baru').update(usulanKontrakBaruRecord).eq('nip', cleanNip);
+          resUkb = await db.from('usulan_kontrak_baru').update(usulanKontrakBaruRecord).eq('nip', cleanNip);
         } else {
-          await db.from('usulan_kontrak_baru').insert(usulanKontrakBaruRecord);
+          resUkb = await db.from('usulan_kontrak_baru').insert(usulanKontrakBaruRecord);
+        }
+        if (resUkb && resUkb.error) {
+          console.warn('[generateKontrakDocument] save usulan_kontrak_baru error:', resUkb.error.message);
+          await db.from('usulan_kontrak_baru').upsert({
+            nip: cleanNip,
+            nama_lengkap: namaLengkap,
+            tmp_lhr: actualFormData.tmp_lhr || '',
+            tgl_lhr: safeTglLhr,
+            layanan: inferredLayanan,
+            sub_menu: targetSubMenu,
+            form_data: safeFormData,
+            status: 'Selesai',
+            diajukan_oleh_nip: decoded.nip
+          }, { onConflict: 'nip' });
         }
       } catch (eBaru) {
         console.warn('[generateKontrakDocument] save usulan_kontrak_baru warning:', eBaru.message);
         try {
-          await db.from('usulan_kontrak_baru').upsert(usulanKontrakBaruRecord, { onConflict: 'nip' });
+          await db.from('usulan_kontrak_baru').upsert({
+            nip: cleanNip,
+            nama_lengkap: namaLengkap,
+            tmp_lhr: actualFormData.tmp_lhr || '',
+            tgl_lhr: safeTglLhr,
+            layanan: inferredLayanan,
+            sub_menu: targetSubMenu,
+            form_data: safeFormData,
+            status: 'Selesai',
+            diajukan_oleh_nip: decoded.nip
+          }, { onConflict: 'nip' });
         } catch (_) {}
       }
 
       // Simpan/Update juga ke tabel data_utama di Supabase
       const empRecord = {
         nip: cleanNip,
-        nik: actualFormData.nik || '',
         nama_lengkap: namaLengkap,
         nama: namaLengkap,
         tmp_lhr: actualFormData.tmp_lhr || '',
-        tgl_lhr: actualFormData.tgl_lhr || null,
+        tgl_lhr: safeTglLhr,
         pendidikan: actualFormData.pendidikan || '',
         jurusan: actualFormData.jurusan || '',
         unit_es_ii: actualFormData.unit_es_ii || '',
         jabatan: actualFormData.jabatan || '',
-        alamat: actualFormData.alamat || '',
-        nomor_telepon: actualFormData.nomor_telepon || '',
         status_kepegawaian: (targetSubMenu === 'Calon Pegawai Tetap Undip NON ASN') ? 'Calon Pegawai Undip Non ASN' : 'Non ASN / Kontrak',
-        jenis_peg: (layanan === 'Kontrak Dosen') ? 'Tenaga Dosen' : (actualFormData.jenis_peg || 'Tenaga Kependidikan'),
+        jenis_peg: (inferredLayanan === 'Kontrak Dosen' || (cleanNip.length >= 10 && cleanNip.slice(8, 10) === '01')) ? 'Tenaga Dosen' : (actualFormData.jenis_peg || 'Tenaga Kependidikan'),
         status_bekerja: 'Aktif Bekerja'
       };
+      if (cleanNip.length >= 18) {
+        empRecord.jns_kel = (cleanNip.slice(14, 15) === '2') ? 'Perempuan' : 'Laki-laki';
+      } else if (actualFormData.gender) {
+        empRecord.jns_kel = (actualFormData.gender === '2' || actualFormData.gender === 'Perempuan') ? 'Perempuan' : 'Laki-laki';
+      }
+
       try {
         const { data: existDu } = await db.from('data_utama').select('nip').eq('nip', cleanNip).maybeSingle();
+        let resDu = null;
         if (existDu) {
-          await db.from('data_utama').update(empRecord).eq('nip', cleanNip);
+          resDu = await db.from('data_utama').update(empRecord).eq('nip', cleanNip);
         } else {
-          await db.from('data_utama').insert(empRecord);
+          resDu = await db.from('data_utama').insert(empRecord);
+        }
+        if (resDu && resDu.error) {
+          console.warn('[generateKontrakDocument] save data_utama error:', resDu.error.message);
+          await db.from('data_utama').upsert({
+            nip: cleanNip,
+            nama_lengkap: namaLengkap,
+            nama: namaLengkap,
+            tmp_lhr: actualFormData.tmp_lhr || '',
+            tgl_lhr: safeTglLhr,
+            status_kepegawaian: empRecord.status_kepegawaian,
+            jenis_peg: empRecord.jenis_peg,
+            status_bekerja: 'Aktif Bekerja'
+          }, { onConflict: 'nip' });
         }
       } catch (dbErr) {
         console.warn('[generateKontrakDocument] save data_utama warning:', dbErr.message);
         try {
-          await db.from('data_utama').upsert(empRecord, { onConflict: 'nip' });
+          await db.from('data_utama').upsert({
+            nip: cleanNip,
+            nama_lengkap: namaLengkap,
+            nama: namaLengkap,
+            tmp_lhr: actualFormData.tmp_lhr || '',
+            tgl_lhr: safeTglLhr,
+            status_kepegawaian: empRecord.status_kepegawaian,
+            jenis_peg: empRecord.jenis_peg,
+            status_bekerja: 'Aktif Bekerja'
+          }, { onConflict: 'nip' });
         } catch (_) {}
       }
 
-      // Update juga di draft_nip_non_asn jika kategori CPTU
-      if (targetSubMenu === 'Calon Pegawai Tetap Undip NON ASN') {
-        try {
-          await db.from('draft_nip_non_asn').update({
-            nama_lengkap: namaLengkap,
-            tmp_lhr: actualFormData.tmp_lhr || '',
-            tgl_lhr: actualFormData.tgl_lhr || null,
-            status: 'Selesai',
-            form_data: actualFormData
-          }).eq('nip', cleanNip);
-        } catch (_) {}
-      }
+      // Update juga di draft_nip_non_asn jika ada data tersimpan
+      try {
+        await db.from('draft_nip_non_asn').update({
+          nama_lengkap: namaLengkap,
+          tmp_lhr: actualFormData.tmp_lhr || '',
+          tgl_lhr: safeTglLhr,
+          status: 'Selesai',
+          form_data: safeFormData
+        }).eq('nip', cleanNip);
+      } catch (_) {}
     }
 
     // 3. Generate Dokumen
