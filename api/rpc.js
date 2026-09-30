@@ -3309,11 +3309,14 @@ const methods = {
       }
       const { data: uList } = await reqU.limit(10);
       if (uList && uList.length) {
-        const existingNips = new Set(results.map(r => String(r.nip).trim()));
+        const existingNips = new Set(results.map(r => String(r.nip).trim().toLowerCase()));
+        const existingNipsClean = new Set(results.map(r => String(r.nip).replace(/[^a-zA-Z0-9]/g, '').toLowerCase()));
         uList.forEach(u => {
           const uNip = String(u.nip || '').trim();
-          if (uNip && !existingNips.has(uNip)) {
-            existingNips.add(uNip);
+          const uNipClean = uNip.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (uNip && !existingNips.has(uNip.toLowerCase()) && !existingNipsClean.has(uNipClean)) {
+            existingNips.add(uNip.toLowerCase());
+            existingNipsClean.add(uNipClean);
             const uNama = u.nama_lengkap || uNip;
             results.push({
               nip: uNip,
@@ -3347,7 +3350,11 @@ const methods = {
     verifyToken(token);
     const db = getDb();
     const cleanNip = String(nip || '').trim();
-    const { data, error } = await db.from('data_utama').select('*').eq('nip', cleanNip).maybeSingle();
+    let { data, error } = await db.from('data_utama').select('*').eq('nip', cleanNip).maybeSingle();
+    if (!data && cleanNip.replace(/\s+/g, '') !== cleanNip) {
+      const { data: d2 } = await db.from('data_utama').select('*').eq('nip', cleanNip.replace(/\s+/g, '')).maybeSingle();
+      if (d2) data = d2;
+    }
     if (error) throw error;
     if (data) return data;
 
@@ -12243,40 +12250,27 @@ const methods = {
       }
 
       try {
-        const { data: existDu } = await db.from('data_utama').select('nip').eq('nip', cleanNip).maybeSingle();
-        let resDu = null;
-        if (existDu) {
-          resDu = await db.from('data_utama').update(empRecord).eq('nip', cleanNip);
-        } else {
-          resDu = await db.from('data_utama').insert(empRecord);
+        let existDu = null;
+        const { data: d1 } = await db.from('data_utama').select('nip').eq('nip', cleanNip).maybeSingle();
+        existDu = d1;
+        if (!existDu && cleanNip.replace(/\s+/g, '') !== cleanNip) {
+          const { data: d2 } = await db.from('data_utama').select('nip').eq('nip', cleanNip.replace(/\s+/g, '')).maybeSingle();
+          existDu = d2;
         }
-        if (resDu && resDu.error) {
-          console.warn('[generateKontrakDocument] save data_utama error:', resDu.error.message);
-          await db.from('data_utama').upsert({
-            nip: cleanNip,
-            nama_lengkap: namaLengkap,
-            nama: namaLengkap,
-            tmp_lhr: actualFormData.tmp_lhr || '',
-            tgl_lhr: safeTglLhr,
-            status_kepegawaian: empRecord.status_kepegawaian,
-            jenis_peg: empRecord.jenis_peg,
-            status_bekerja: 'Aktif Bekerja'
-          }, { onConflict: 'nip' });
+
+        if (existDu) {
+          // Data pegawai sudah ada di data_utama: JANGAN PERNAH mengubah tabel data_utama!
+          // Sesuai aturan: data_utama tidak boleh berubah saat penginputan / generate perjanjian ulang.
+          // Seluruh perubahan data form hanya tersimpan di usulan_kontrak_baru (dan draft_nip_non_asn).
+        } else {
+          // Hanya insert jika pegawai baru dan belum tercatat di data_utama
+          const resDu = await db.from('data_utama').insert(empRecord);
+          if (resDu && resDu.error) {
+            console.warn('[generateKontrakDocument] insert data_utama error:', resDu.error.message);
+          }
         }
       } catch (dbErr) {
         console.warn('[generateKontrakDocument] save data_utama warning:', dbErr.message);
-        try {
-          await db.from('data_utama').upsert({
-            nip: cleanNip,
-            nama_lengkap: namaLengkap,
-            nama: namaLengkap,
-            tmp_lhr: actualFormData.tmp_lhr || '',
-            tgl_lhr: safeTglLhr,
-            status_kepegawaian: empRecord.status_kepegawaian,
-            jenis_peg: empRecord.jenis_peg,
-            status_bekerja: 'Aktif Bekerja'
-          }, { onConflict: 'nip' });
-        } catch (_) {}
       }
 
       // Update juga di draft_nip_non_asn jika ada data tersimpan
