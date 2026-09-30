@@ -342,8 +342,15 @@ function renderTableCellsInPlace_(table, dataContext, isOpsiB) {
       if (cellHasNestedTable_(cell)) continue;
       renderCellTextInPlace_(cell, dataContext, isOpsiB);
     }
-    // Set auto-fit minimum height = 0 di setiap baris tabel agar tinggi sel selalu rapat mengikuti konten
-    try { row.setMinimumHeight(0); } catch (_) {}
+    // Set auto-fit minimum height = 0 untuk baris non-tanda tangan agar tinggi sel selalu rapat mengikuti konten,
+    // namun pertahankan tinggi baris tanda tangan jika telah diset oleh pembuat template
+    try {
+      const rowText = row.getText();
+      const isSigRow = /ttd|signature|tanda_tangan|pihak|pejabat|penilai|meterai/i.test(rowText);
+      if (!isSigRow) {
+        row.setMinimumHeight(0);
+      }
+    } catch (_) {}
   }
 }
 
@@ -399,18 +406,35 @@ function renderCellTextInPlace_(cell, dataContext, isOpsiB) {
     return false;
   }
 
-  // JANGAN PERNAH lakukan cell.clear() jika sel memuat gambar (InlineImage) atau memuat placeholder tanda tangan/foto/pejabat!
+  // JANGAN PERNAH lakukan collapse/clear jika sel memuat gambar (InlineImage) atau memuat placeholder tanda tangan/foto/pejabat/identitas!
   const hasImage = cellHasImage_(cell);
-  const isSignatureOrPhotoCell = /ttd|signature|foto|pas_foto|pejabat|penilai/i.test(originalText);
+  const isSignatureOrPhotoCell = /ttd|signature|tanda_tangan|foto|pas_foto|photo|pejabat|penilai|pihak|nama|nip|nppu|nik|pegawai|dekan|rektor|direktur|pimpinan|mengetahui/i.test(originalText);
 
   const numAnak = cell.getNumChildren();
-  const trimmed = originalText.trim();
-  // Sel rumus multi-baris: jika sel memiliki lebih dari 1 paragraf, bukan gambar/ttd/foto,
-  // dan merupakan formula (misal: diapit {{ }}, mengandung ternary ?: atau kata kunci kalkulasi/predikat/jabatan/bulan/golongan)
+
+  // Periksa apakah ada tag {{...}} yang terpecah antar-paragraf
+  let hasSplitTag = false;
+  if (numAnak > 1) {
+    for (let i = 0; i < numAnak; i++) {
+      const ch = cell.getChild(i);
+      if (ch.getType() === DocumentApp.ElementType.PARAGRAPH) {
+        const pt = ch.asParagraph().getText();
+        const opens = (pt.match(/\{\{/g) || []).length;
+        const closes = (pt.match(/\}\}/g) || []).length;
+        if (opens !== closes) {
+          hasSplitTag = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // Sel rumus multi-baris: HANYA jika sel memiliki lebih dari 1 paragraf, bukan gambar/ttd/foto/identitas/tanda tangan,
+  // dan tag rumusnya terpecah antar-baris (hasSplitTag) atau formula perhitungan multi-baris murni
   const isFormulaCell = !hasImage && !isSignatureOrPhotoCell && (
-    (trimmed.startsWith('{{') && trimmed.endsWith('}}')) ||
-    /\{\{[\s\S]*?\?[\s\S]*?:[\s\S]*?\}\}/.test(originalText) ||
-    /\{\{\s*(?:if|set|ak_|konversi|kumulatif|golongan|pangkat|dpcp|predikat|jabatan|bulan|num|sum)\b/i.test(originalText)
+    hasSplitTag ||
+    (/\{\{[\s\S]*?\?[\s\S]*?:[\s\S]*?\}\}/.test(originalText) && !originalText.includes('{{nama')) ||
+    (/\{\{\s*(?:if|set|ak_|konversi|kumulatif|dpcp)\b/i.test(originalText) && hasSplitTag)
   );
 
   if (numAnak > 1 && isFormulaCell) {
@@ -428,10 +452,9 @@ function renderCellTextInPlace_(cell, dataContext, isOpsiB) {
       }
       newText = newText.split(m[0]).join(value);
     }
-    cell.clear();
-    const newP = cell.appendParagraph(newText ? newText.trim() : ' ');
-    if (isOpsiB) {
-      enforceMinFontSizeInParagraph_(newP, 9);
+    cell.setText(newText ? newText.trim() : ' ');
+    if (isOpsiB && cell.getNumChildren() > 0 && cell.getChild(0).getType() === DocumentApp.ElementType.PARAGRAPH) {
+      enforceMinFontSizeInParagraph_(cell.getChild(0).asParagraph(), 9);
     }
     return true;
   }

@@ -815,13 +815,26 @@ function enforceDocxFont(zip, fontName = null) {
 function cleanWordXmlParagraphBraces(xml) {
   if (!xml) return '';
   return xml.replace(/(<w:p\b[^>]*>)([\s\S]*?)(<\/w:p>)/gi, (pMatch, pOpen, pBody, pClose) => {
-    if (!pBody.includes('{') && !pBody.includes('}')) return pMatch;
+    if (!pBody.includes('{') || !pBody.includes('}')) return pMatch;
 
     // Hapus proofErr dan tag pengganggu yang sering memisahkan placeholder Word
     let cleanedBody = pBody.replace(/<w:proofErr[^>]*\/>|<w:noProof[^>]*\/>|<w:lang[^>]*\/>/gi, '');
 
-    // Bersihkan batas run tag di antara kurung kurawal agar tag {{placeholder}} menyatu 100%
-    cleanedBody = cleanedBody.replace(/<\/w:t>\s*<\/w:r>[\s\S]*?<w:r\b[^>]*>(?:<w:rPr>[\s\S]*?<\/w:rPr>)?\s*<w:t\b[^>]*>/gi, '');
+    // Bersihkan batas run tag HANYA jika memecah placeholder kurung kurawal, sambil mewariskan bold jika ada di run dalam
+    let prev;
+    do {
+      prev = cleanedBody;
+      cleanedBody = cleanedBody.replace(/<w:r\b([^>]*)>(?:<w:rPr>([\s\S]*?)<\/w:rPr>)?(<w:t\b[^>]*>\{+[^{}]*?)<\/w:t>\s*<\/w:r>(?:<w:proofErr[^>]*\/>)?<w:r\b[^>]*>(?:<w:rPr>([\s\S]*?)<\/w:rPr>)?\s*<w:t\b[^>]*>([^{}]*?\}+)/gi, (match, rAttrs, rPr1, t1, rPr2, t2) => {
+        let rPr = rPr1 || '';
+        if (rPr2 && (rPr2.includes('<w:b/>') || rPr2.includes('<w:b ') || rPr2.includes('<w:bCs/>'))) {
+          if (!rPr.includes('<w:b/>') && !rPr.includes('<w:b ') && !rPr.includes('<w:bCs/>')) {
+            rPr = '<w:b/>' + rPr;
+          }
+        }
+        const rPrStr = rPr ? `<w:rPr>${rPr}</w:rPr>` : '';
+        return `<w:r${rAttrs}>${rPrStr}${t1}${t2}`;
+      });
+    } while (cleanedBody !== prev);
 
     // Bersihkan tag XML internal di dalam kurung kurawal
     cleanedBody = cleanedBody.replace(/\{([^{}]+)\}/g, (match, content) => {
@@ -842,7 +855,7 @@ function cleanDocxTableCellLeadingEmptyParagraphs(xml) {
 function cleanDocxTableCellSplitFormulas(xml) {
   if (!xml || typeof xml !== 'string' || !xml.includes('<w:tc')) return xml;
   return xml.replace(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/gi, (tcXml) => {
-    if (/w:drawing|pic:pic|ttd|signature|pas_foto|foto/i.test(tcXml)) return tcXml;
+    if (/w:drawing|pic:pic|ttd|signature|tanda_tangan|pas_foto|foto|photo|pejabat|penilai|pihak|nama|nip|nppu|nik|pegawai|dekan|rektor|direktur|pimpinan|mengetahui/i.test(tcXml)) return tcXml;
     if (tcXml.includes('{{') && tcXml.includes('}}')) {
       const pMatches = tcXml.match(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/gi);
       if (pMatches && pMatches.length > 1) {
