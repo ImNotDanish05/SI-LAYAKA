@@ -15165,7 +15165,8 @@ function loadPmkUsulanList() {
               item.status === 'siap diajukan di SIASN' ||
               item.status === 'Siap diajukan ke E-duk'
             );
-            const badgeBg = isCompletedStatus ? '#10b981' : '#f59e0b';
+            const isRejected = (item.status === 'Ditolak');
+            const badgeBg = isRejected ? '#ef4444' : (isCompletedStatus ? '#10b981' : '#f59e0b');
             const statusLabel = item.status || 'Diajukan';
             const tgl = item.tanggal_diajukan ? formatTanggalIndonesia(item.tanggal_diajukan) : '-';
             const isPg = (item.jenis_usulan === 'PG');
@@ -15185,11 +15186,24 @@ function loadPmkUsulanList() {
                   <div class="cdli-meta" style="margin-top:2px; font-size:12px; color:#64748b;">
                     No. Surat: <strong>${escapeHtml(item.nomor_surat_usul_pmk || '-')}</strong> &middot; Diajukan oleh: ${escapeHtml(item.nama_pengaju || '-')} (${tgl})
                   </div>
+                  ${isRejected && item.alasan_penolakan ? `
+                    <div style="margin-top:4px; font-size:12px; color:#dc2626;">
+                      ⚠️ Alasan: <em>${escapeHtml(item.alasan_penolakan)}</em>
+                    </div>
+                  ` : ''}
                 </div>
-                <div>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                   <button type="button" class="btn btn-primary kp-small-btn" onclick="event.stopPropagation(); viewPmkUsulanDetail('${item.id}')">
                     ${btnLabel}
                   </button>
+                  ${isAdmin ? `
+                    <button type="button" class="btn btn-outline kp-small-btn" style="color:#dc2626; border-color:#fca5a5; font-size:12px; padding:4px 10px;" onclick="event.stopPropagation(); adminRejectUsulanPmk('${item.id}')" title="Tolak Usulan">
+                      🚫 Tolak
+                    </button>
+                    <button type="button" class="btn btn-outline kp-small-btn" style="color:#b91c1c; border-color:#f87171; background:#fef2f2; font-size:12px; padding:4px 10px;" onclick="event.stopPropagation(); adminDeleteUsulanPmk('${item.id}')" title="Hapus Usulan">
+                      🗑️ Hapus
+                    </button>
+                  ` : ''}
                 </div>
               </div>
             `;
@@ -15225,7 +15239,8 @@ function viewPmkUsulanDetail(usulanId) {
         u.status === 'siap diajukan di SIASN' ||
         u.status === 'Siap diajukan ke E-duk'
       );
-      const badgeBg = isCompletedStatus ? '#10b981' : '#f59e0b';
+      const isRejected = (u.status === 'Ditolak');
+      const badgeBg = isRejected ? '#ef4444' : (isCompletedStatus ? '#10b981' : '#f59e0b');
       const statusLabel = u.status || 'Diajukan';
       const tgl = u.tanggal_diajukan ? formatTanggalIndonesia(u.tanggal_diajukan) : '-';
       const isPg = (u.jenis_usulan === 'PG');
@@ -15274,6 +15289,18 @@ function viewPmkUsulanDetail(usulanId) {
             </div>
           </div>
 
+          ${isRejected ? `
+            <div style="margin-bottom:16px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px 16px; display:flex; align-items:flex-start; gap:10px;">
+              <span style="font-size:18px; line-height:1;">⚠️</span>
+              <div style="flex:1;">
+                <div style="color:#991b1b; font-weight:700; font-size:13.5px;">Usulan Ditolak oleh Tim Kepegawaian</div>
+                <div style="color:#b91c1c; font-size:13px; margin-top:3px;">
+                  ${u.alasan_penolakan ? '<strong>Alasan:</strong> ' + escapeHtml(u.alasan_penolakan) : 'Tidak ada catatan alasan penolakan.'}
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
           <div style="margin-bottom:16px; background:#f8fafc; padding:14px; border-radius:8px; border:1px solid #e2e8f0;">
             <h4 style="margin:0 0 10px 0; font-size:14px; font-weight:700; color:#1e293b;">
               📋 ${isAdmin ? 'Verifikasi Kelengkapan Berkas Lampiran' : 'Status Verifikasi Berkas Lampiran'} ${isPg ? 'PG' : 'PMK'}
@@ -15313,6 +15340,22 @@ function viewPmkUsulanDetail(usulanId) {
               `).join('')}
             </div>
           </div>
+
+          ${isAdmin ? `
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:20px; border-top:1px solid #e2e8f0; padding-top:16px;">
+              <div style="font-size:12.5px; color:#64748b;">
+                Tindakan Admin: Tolak usulan jika berkas tidak memenuhi syarat, atau hapus usulan jika diajukan ganda/salah.
+              </div>
+              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <button type="button" class="btn btn-outline" style="color:#dc2626; border-color:#dc2626; font-weight:600; font-size:13px; padding:8px 16px; border-radius:6px; cursor:pointer;" onclick="adminRejectUsulanPmk('${u.id}')">
+                  🚫 Tolak Usulan
+                </button>
+                <button type="button" class="btn btn-outline" style="color:#991b1b; border-color:#ef4444; background:#fee2e2; font-weight:700; font-size:13px; padding:8px 16px; border-radius:6px; cursor:pointer;" onclick="adminDeleteUsulanPmk('${u.id}')">
+                  🗑️ Hapus Usulan
+                </button>
+              </div>
+            </div>
+          ` : ''}
         </div>
       `;
     })
@@ -15339,6 +15382,91 @@ function togglePmkDocApproval(usulanId, docKey, disetujui) {
     })
     .withFailureHandler(err => showToast('error', 'Gagal memproses persetujuan dokumen: ' + (err.message || err)))
     .approveUsulanPmkAttachment(SESSION.token, usulanId, docKey, disetujui);
+}
+
+/** Admin Reject Usulan PMK / PG */
+async function adminRejectUsulanPmk(usulanId) {
+  const isAdmin = (SESSION.user && (SESSION.user.role === 'admin' || SESSION.user.role === 'super_admin'));
+  if (!isAdmin) {
+    showToast('error', 'Hanya Admin atau Super Admin yang berhak menolak usulan.');
+    return;
+  }
+  const alasan = prompt('Masukkan alasan penolakan usulan PMK/PG (opsional):');
+  if (alasan === null) return;
+
+  showToast('info', 'Memproses penolakan...');
+  try {
+    const res = await rpc('rejectUsulanPmk', [SESSION.token, usulanId, alasan]);
+    if (res && res.success) {
+      showToast('success', res.message || 'Usulan berhasil ditolak.');
+      const detailState = document.getElementById('pmkUsulanDetailState');
+      if (detailState && detailState.style.display !== 'none') {
+        viewPmkUsulanDetail(usulanId);
+      } else {
+        loadPmkUsulanList();
+      }
+    } else {
+      showToast('error', res?.message || 'Gagal menolak usulan.');
+    }
+  } catch (err) {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            showToast('success', res.message);
+            const detailState = document.getElementById('pmkUsulanDetailState');
+            if (detailState && detailState.style.display !== 'none') {
+              viewPmkUsulanDetail(usulanId);
+            } else {
+              loadPmkUsulanList();
+            }
+          } else {
+            showToast('error', res.message);
+          }
+        })
+        .withFailureHandler(e => showToast('error', 'Gagal menolak usulan: ' + (e.message || e)))
+        .rejectUsulanPmk(SESSION.token, usulanId, alasan);
+    } else {
+      showToast('error', 'Gagal menolak usulan: ' + (err.message || err));
+    }
+  }
+}
+
+/** Admin Delete Usulan PMK / PG */
+async function adminDeleteUsulanPmk(usulanId) {
+  const isAdmin = (SESSION.user && (SESSION.user.role === 'admin' || SESSION.user.role === 'super_admin'));
+  if (!isAdmin) {
+    showToast('error', 'Hanya Admin atau Super Admin yang berhak menghapus usulan.');
+    return;
+  }
+  if (!confirm('Apakah Anda yakin ingin menghapus usulan PMK/PG ini secara permanen? Data yang dihapus tidak dapat dikembalikan.')) return;
+
+  showToast('info', 'Menghapus usulan...');
+  try {
+    const res = await rpc('deleteUsulanPmk', [SESSION.token, usulanId]);
+    if (res && res.success) {
+      showToast('success', res.message || 'Usulan berhasil dihapus.');
+      backToPmkList();
+    } else {
+      showToast('error', res?.message || 'Gagal menghapus usulan.');
+    }
+  } catch (err) {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            showToast('success', res.message);
+            backToPmkList();
+          } else {
+            showToast('error', res.message);
+          }
+        })
+        .withFailureHandler(e => showToast('error', 'Gagal menghapus: ' + (e.message || e)))
+        .deleteUsulanPmk(SESSION.token, usulanId);
+    } else {
+      showToast('error', 'Gagal menghapus usulan: ' + (err.message || err));
+    }
+  }
 }
 
 /* =====================================================================

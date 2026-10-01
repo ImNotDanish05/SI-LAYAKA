@@ -12958,6 +12958,41 @@ const methods = {
       allApproved,
       status: newStatus
     };
+  },
+
+  async rejectUsulanPmk(args) {
+    const [token, id, alasan] = extractArgs(args);
+    const decoded = requireRole(token, ['admin', 'super_admin']);
+    if (!id) return { success: false, message: 'ID usulan wajib diisi.' };
+    const db = getDb();
+
+    let updateObj = {
+      status: 'Ditolak',
+      alasan_penolakan: String(alasan || '').trim(),
+      diproses_oleh_nip: decoded.nip,
+      tanggal_diproses: new Date().toISOString()
+    };
+
+    let { error } = await db.from('usulan_pmk').update(updateObj).eq('id', id);
+    if (error && error.message && error.message.includes('alasan_penolakan')) {
+      delete updateObj.alasan_penolakan;
+      const res2 = await db.from('usulan_pmk').update(updateObj).eq('id', id);
+      if (res2.error) throw res2.error;
+    } else if (error) {
+      throw error;
+    }
+
+    return { success: true, message: 'Usulan PMK / PG berhasil ditolak.' };
+  },
+
+  async deleteUsulanPmk(args) {
+    const [token, id] = extractArgs(args);
+    requireRole(token, ['admin', 'super_admin']);
+    if (!id) return { success: false, message: 'ID usulan wajib diisi.' };
+    const db = getDb();
+    const { error } = await db.from('usulan_pmk').delete().eq('id', id);
+    if (error) return { success: false, message: 'Gagal menghapus usulan: ' + error.message };
+    return { success: true, message: 'Usulan PMK / PG berhasil dihapus permanen.' };
   }
 };
 

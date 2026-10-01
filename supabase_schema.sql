@@ -384,6 +384,7 @@ ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS file_sk_pengaktifan_url         
 ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS file_sk_pengaktifan_approved      BOOLEAN DEFAULT FALSE;
 ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS file_penyetaraan_ijazah_url       TEXT;
 ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS file_penyetaraan_ijazah_approved  BOOLEAN DEFAULT FALSE;
+ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS alasan_penolakan                  TEXT;
 
 -- Migrasi aman untuk database usulan_kontrak yang sudah ada
 ALTER TABLE usulan_kontrak ADD COLUMN IF NOT EXISTS form_data                   JSONB DEFAULT '{}';

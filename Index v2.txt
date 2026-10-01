@@ -1891,6 +1891,7 @@
                 <option value="Diajukan">Diajukan</option>
                 <option value="Siap diajukan ke SIASN dan update E-duk">Siap Diajukan ke SIASN &amp; Update E-duk</option>
                 <option value="Siap update E-duk">Siap Update E-duk</option>
+                <option value="Ditolak">Ditolak</option>
               </select>
               <button type="button" class="btn btn-secondary" onclick="loadPmkUsulanList()" style="padding:6px 14px; font-size:13px;">🔄 Refresh List</button>
             </div>
