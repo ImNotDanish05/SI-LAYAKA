@@ -4410,7 +4410,7 @@ const methods = {
       renderedBuffer = createDefaultSkDocxBuffer(jenis_sk, dataCtx);
     }
 
-    const isGdocs = (tmpl && (tmpl.tipe === 'gdocs' || tmpl.tipe === 'gdrive' || String(tmpl.file_id).includes('docs.google.com'))) || (payload && payload.tipe === 'gdocs');
+    const isGdocs = (tmpl && (tmpl.tipe === 'gdocs' || tmpl.tipe === 'gdrive' || String(tmpl.file_id).includes('docs.google.com'))) || (payload && (payload.tipe === 'gdocs' || payload.tipe_template === 'gdocs'));
     let viewUrl = null;
     let fileId = null;
 
@@ -4428,9 +4428,9 @@ const methods = {
           const remoteSession = {
             id: shortId,
             data: {
-              nip: empNip || decoded.nip || '',
-              nama_lengkap: empNama || decoded.nama || '',
-              nama: empNama || decoded.nama || '',
+              nip: decoded.nip || 'admin',
+              nama_lengkap: decoded.nama || 'Admin',
+              nama: decoded.nama || 'Admin',
               role: decoded.role || 'admin'
             }
           };
@@ -4450,15 +4450,17 @@ const methods = {
                   nip: empNip || ''
                 },
                 layanan: 'Buat SK dan Surat',
-                subLayanan: jenis_sk
+                subLayanan: jenis_sk,
+                tipeTemplate: 'gdocs',
+                outputType: 'gdocs'
               }],
               remoteSession
             })
           });
           const gasResult = await gasResponse.json();
           if (gasResult && gasResult.success) {
-            viewUrl = gasResult.viewUrl;
             fileId = gasResult.fileId;
+            viewUrl = gasResult.gdocsUrl || gasResult.docUrl || gasResult.viewUrl || (fileId ? `https://docs.google.com/document/d/${fileId}/edit` : null);
           }
         } catch (gasErr) {
           console.warn('[generateSkBaru] GAS call error:', gasErr.message);
@@ -4479,6 +4481,7 @@ const methods = {
       success: true,
       outputType: isGdocs ? 'gdocs' : 'docx',
       viewUrl: viewUrl || null,
+      gdocsUrl: viewUrl || null,
       docUrl: viewUrl || null,
       fileId: fileId || null,
       base64,

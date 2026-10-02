@@ -17358,18 +17358,47 @@ async function buatSkGenerate(btnEl) {
     form_data.tugas_tambahan         = BUAT_SK.jenisTutamStruktural;
   }
 
+  const tipeTemplate = BUAT_SK.tipeTemplate || document.getElementById('buatSk_tipeTemplate')?.value || 'docx';
+
   if (btn) setBtnLoading(btn, true, 'Memproses...');
   showLoadingOverlay('Memproses Pembuatan SK...');
   try {
     const res = await rpc('generateSkBaru', [SESSION.token, {
-      jenis_sk: jenisSk, template_id: templateId, form_data,
+      jenis_sk: jenisSk,
+      template_id: templateId,
+      tipe_template: tipeTemplate,
+      tipe: tipeTemplate,
+      form_data,
       pejabat_dilantik: BUAT_SK.pejabatDilantik,
       pejabat_diberhentikan: BUAT_SK.pejabatDiberhentikan
     }]);
     hideLoadingOverlay();
     if (btn) setBtnLoading(btn, false, '⚡ Buat SK');
 
-    if (res.success && res.base64) {
+    const isGdocs = (res.outputType === 'gdocs' || tipeTemplate === 'gdocs') && (res.viewUrl || res.docUrl || res.gdocsUrl);
+    if (res.success && isGdocs) {
+      let gdocsUrl = res.gdocsUrl || res.docUrl || res.viewUrl || '';
+      const m = gdocsUrl.match(/\/d\/([a-zA-Z0-9_-]{20,})/);
+      if (m && !gdocsUrl.includes('docs.google.com/document/d/')) {
+        gdocsUrl = `https://docs.google.com/document/d/${m[1]}/edit`;
+      }
+      window.open(gdocsUrl, '_blank');
+
+      // Simpan ke riwayat
+      try {
+        await rpc('saveSkGenerated', [SESSION.token, {
+          jenis_sk: jenisSk, template_id: templateId,
+          unit_es_ii: BUAT_SK.unitEsIi, form_data,
+          pejabat_dilantik: BUAT_SK.pejabatDilantik,
+          pejabat_diberhentikan: BUAT_SK.pejabatDiberhentikan,
+          output_type: 'gdocs',
+          view_url: gdocsUrl,
+          file_id: res.fileId || ''
+        }]);
+      } catch(sErr) { console.warn('[saveSkGenerated] warning:', sErr); }
+
+      showToast('success', `✅ Dokumen Google Docs "${jenisSk}" berhasil dibuat dan dibuka.`);
+    } else if (res.success && res.base64) {
       // Download DOCX
       const byteChars = atob(res.base64);
       const byteArr   = new Uint8Array(byteChars.length);
@@ -18205,6 +18234,7 @@ async function cptuExecuteBatchGenerate() {
       const res = await rpc('generateSkBaru', [SESSION.token, {
         jenis_sk: jenisSk,
         template_id: templateId,
+        tipe_template: tipeTemplate,
         tipe: tipeTemplate,
         form_data: form_data,
         pejabat_dilantik: [],
@@ -18224,7 +18254,13 @@ async function cptuExecuteBatchGenerate() {
           zip.file(fileName, byteArr);
         }
 
-        const docUrl = res.viewUrl || res.docUrl || res.gdocsUrl || (res.fileId ? `https://docs.google.com/document/d/${res.fileId}/edit` : '');
+        let docUrl = res.gdocsUrl || res.docUrl || res.viewUrl || (res.fileId ? `https://docs.google.com/document/d/${res.fileId}/edit` : '');
+        if (docUrl) {
+          const m = docUrl.match(/\/d\/([a-zA-Z0-9_-]{20,})/);
+          if (m && !docUrl.includes('docs.google.com/document/d/')) {
+            docUrl = `https://docs.google.com/document/d/${m[1]}/edit`;
+          }
+        }
 
         batchResults.push({
           no: i + 1,
@@ -18259,7 +18295,7 @@ async function cptuExecuteBatchGenerate() {
       const dateStr = new Date().toISOString().slice(0, 10);
       const zipFileName = `Batch_${prefix}_${dateStr}.zip`;
 
-      const isGdocs = (tipeTemplate === 'gdocs' || BUAT_SK.tipeTemplate === 'gdocs');
+      const isGdocs = (tipeTemplate === 'gdocs' || BUAT_SK.tipeTemplate === 'gdocs' || batchResults.some(b => b.viewUrl && b.viewUrl.includes('docs.google.com')));
 
       if (isGdocs) {
         cptuShowBatchGDocsResultModal({

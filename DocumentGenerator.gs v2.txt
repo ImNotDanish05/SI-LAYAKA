@@ -425,8 +425,11 @@ function generateDocument(sessionToken, payload) {
       nipYangDigenerate.forEach(nip => tandaiOpsiUsulanKpSelesai_(nip, payload.subLayanan, employeeSession.nip));
     }
 
-    const userRole = getUserRole_(employeeSession.nip);
-    const isNormalOrUser = (userRole === 'normal' || userRole === 'user');
+    const userRole = (employeeSession && employeeSession.role) || getUserRole_(employeeSession.nip);
+    const subLayananStr = String(payload.subLayanan || '').trim();
+    const isBuatSk = (layanan === 'Buat SK dan Surat' || ['SK CPTU', 'SK PTU 100%', 'SPMT', 'SPMT CPTU'].indexOf(subLayananStr) !== -1);
+    const forceGdocs = isBuatSk || payload.tipeTemplate === 'gdocs' || payload.tipe === 'gdocs' || payload.outputType === 'gdocs';
+    const isNormalOrUser = !forceGdocs && (userRole === 'normal' || userRole === 'user');
 
     if (isNormalOrUser) {
       // Konversi ke PDF
@@ -454,7 +457,8 @@ function generateDocument(sessionToken, payload) {
         outputType: 'pdf'
       };
     } else {
-      // Admin / Super Admin: Tetap kembalikan Google Docs
+      // Admin / Super Admin atau Buat SK / GDocs: Tetap kembalikan Google Docs
+      const gdocsEditUrl = `https://docs.google.com/document/d/${docCopy.getId()}/edit`;
       return {
         success: true,
         message: entries.length > 1
@@ -462,7 +466,9 @@ function generateDocument(sessionToken, payload) {
           : 'Dokumen berhasil dibuat.',
         fileId: docCopy.getId(),
         fileName: fileName,
-        viewUrl: docCopy.getUrl(),
+        viewUrl: gdocsEditUrl,
+        gdocsUrl: gdocsEditUrl,
+        docUrl: gdocsEditUrl,
         jumlahEntri: entries.length,
         outputType: 'gdocs'
       };
