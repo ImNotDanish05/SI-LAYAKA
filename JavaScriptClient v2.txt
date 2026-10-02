@@ -16637,8 +16637,8 @@ async function buatSkLoadPlaceholders() {
   if (wrapAct) wrapAct.style.display = 'flex';
   buatSkHitungGajiPokok();
 
-  // Khusus SK CPTU & SPMT CPTU: Tampilkan opsi Batch Import Excel / Spreadsheet
-  const isCptuBatchSupported = ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk);
+  // Khusus SK CPTU, SPMT, SPMT CPTU, & SK PTU 100%: Tampilkan opsi Batch / Kolektif
+  const isCptuBatchSupported = ['SK CPTU', 'SPMT', 'SPMT CPTU', 'SK PTU 100%'].includes(BUAT_SK.jenisSk);
   const cptuCard = document.getElementById('buatSk_cptuBatchCard');
   if (cptuCard) {
     if (isCptuBatchSupported) {
@@ -17536,64 +17536,173 @@ function cptuSwitchMode(mode) {
   }
 }
 
+function cptuGetActiveColumns() {
+  const EXCLUDE = new Set(['pimpinan', 'nama_pimpinan', 'nama_jabatan', 'today']);
+  const placeholders = BUAT_SK.placeholders || [];
+  const isPtu = (BUAT_SK.jenisSk === 'SK PTU 100%');
+  const isSpmt = (BUAT_SK.jenisSk === 'SPMT' || BUAT_SK.jenisSk === 'SPMT CPTU');
+
+  let rawKeys = placeholders.filter(p => {
+    if (!p) return false;
+    const s = String(p).trim();
+    if (s.startsWith('#') || s.startsWith('/')) return false;
+    if (EXCLUDE.has(s.toLowerCase())) return false;
+    return true;
+  });
+
+  if (!rawKeys.length) {
+    if (isPtu) {
+      rawKeys = ['nama_lengkap', 'nip', 'nomor_sk', 'tmt_pengangkatan', 'nomor_mcu', 'tgl_mcu', 'gol_latsar', 'thn_latsar', 'golongan', 'pangkat', 'jabatan', 'unit_es_ii'];
+    } else if (isSpmt) {
+      rawKeys = ['nama_lengkap', 'nip', 'nomor_spmt', 'tmt', 'golongan', 'pangkat', 'gaji_pokok', 'total_gaji', 'jabatan', 'unit_es_ii'];
+    } else {
+      rawKeys = ['nama_lengkap', 'nip', 'nomor_sk', 'tmt', 'golongan', 'pangkat', 'gaji_pokok', 'total_gaji', 'jabatan', 'unit_es_ii'];
+    }
+  }
+
+  // Pastikan nama_lengkap dan nip selalu di depan
+  const set = new Set(rawKeys.map(k => String(k).trim()));
+  const ordered = [];
+  if (set.has('nama_lengkap')) {
+    ordered.push('nama_lengkap');
+    set.delete('nama_lengkap');
+  } else if (set.has('nama')) {
+    ordered.push('nama_lengkap');
+    set.delete('nama');
+  } else {
+    ordered.push('nama_lengkap');
+  }
+
+  if (set.has('nip')) {
+    ordered.push('nip');
+    set.delete('nip');
+  } else {
+    ordered.push('nip');
+  }
+
+  set.forEach(k => ordered.push(k));
+  return ordered;
+}
+
+function cptuFormatHeaderLabel(colKey) {
+  if (!colKey) return '';
+  const map = {
+    'nama_lengkap': 'Nama Lengkap',
+    'nip': 'NIP',
+    'nomor_sk': 'Nomor SK',
+    'nomor_spmt': 'Nomor SPMT',
+    'tmt': 'TMT',
+    'tmt_pengangkatan': 'TMT Pengangkatan',
+    'nomor_mcu': 'Nomor MCU',
+    'tgl_mcu': 'Tanggal MCU',
+    'gol_latsar': 'Gol. Latsar',
+    'thn_latsar': 'Tahun Latsar',
+    'golongan': 'Golongan',
+    'pangkat': 'Pangkat',
+    'gaji_pokok': 'Gaji Pokok',
+    'total_gaji': 'Total Gaji (80%)',
+    'jabatan': 'Jabatan',
+    'unit_es_ii': 'Unit / Fakultas',
+    'pendidikan': 'Pendidikan',
+    'jurusan': 'Jurusan',
+    'thn_lulus': 'Tahun Lulus',
+    'tmp_lhr': 'Tempat Lahir',
+    'tgl_lhr': 'Tanggal Lahir'
+  };
+  const lower = String(colKey).toLowerCase();
+  if (map[lower]) return map[lower];
+  return String(colKey).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function cptuNormalizeHeader(rawHeader) {
   let h = String(rawHeader || '').trim();
   // Buang kurung kurawal {{ dan }}
   h = h.replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '').trim();
-  h = h.toLowerCase().replace(/[\s\-]/g, '_');
+  const lowerH = h.toLowerCase().replace(/[\s\-]/g, '_');
 
-  // Pemetaan alias ke placeholder CPTU (SK CPTU & SPMT CPTU)
-  if (['no_sk', 'nomorsk', 'nomor_surat_keputusan', 'nosk'].includes(h)) return 'nomor_sk';
-  if (['no_spmt', 'nomorspmt', 'nomor_spmt', 'nospmt'].includes(h)) return 'nomor_spmt';
-  if (['tmt_sk', 'tmt_mulai', 'tmt_pengangkatan', 'tmt_cptu'].includes(h)) return 'tmt';
-  if (['tmt_spmt'].includes(h)) return 'tmt_spmt';
-  if (['nama', 'nama_pegawai', 'nama_dosen', 'nama_tendik'].includes(h)) return 'nama_lengkap';
-  if (['nip_pegawai', 'nik', 'no_induk'].includes(h)) return 'nip';
-  if (['tempat_lahir', 'tempat_lhr', 'tmplhr', 'tempat'].includes(h)) return 'tmp_lhr';
-  if (['tanggal_lahir', 'tanggal_lhr', 'tgllhr', 'tgl_lahir', 'tgllahir'].includes(h)) return 'tgl_lhr';
-  if (['jenjang', 'tingkat_pendidikan', 'jenjang_pendidikan'].includes(h)) return 'pendidikan';
-  if (['prodi', 'program_studi', 'bidang_ilmu'].includes(h)) return 'jurusan';
-  if (['tahun_lulus', 'th_lulus', 'tahun'].includes(h)) return 'thn_lulus';
-  if (['gol', 'gol_ruang', 'golongan_ruang'].includes(h)) return 'golongan';
-  if (['pangkat_golongan'].includes(h)) return 'pangkat';
-  if (['gaji', 'gapok', 'nominal_gaji', 'gaji_cptu'].includes(h)) return 'gaji_pokok';
-  if (['total', 'gaji_total', 'total_gaji_diterima', 'totalgaji'].includes(h)) return 'total_gaji';
-  if (['jabatan_fungsional', 'tugas'].includes(h)) return 'jabatan';
-  if (['unit', 'unit_kerja', 'fakultas', 'departemen'].includes(h)) return 'unit_es_ii';
+  // Jika nama kolom cocok langsung dengan salah satu placeholder template, utamakan itu
+  if (Array.isArray(BUAT_SK.placeholders)) {
+    const exact = BUAT_SK.placeholders.find(p => String(p).toLowerCase().trim() === lowerH);
+    if (exact) return String(exact).trim();
+  }
 
-  return h;
+  // Pemetaan alias ke placeholder
+  if (['no_sk', 'nomorsk', 'nomor_surat_keputusan', 'nosk'].includes(lowerH)) return 'nomor_sk';
+  if (['no_spmt', 'nomorspmt', 'nomor_spmt', 'nospmt'].includes(lowerH)) return 'nomor_spmt';
+  if (['tmt_sk', 'tmt_mulai', 'tmt_cptu'].includes(lowerH)) return 'tmt';
+  if (['tmt_pengangkatan', 'tmt_angkat'].includes(lowerH)) {
+    return (BUAT_SK.placeholders || []).includes('tmt_pengangkatan') ? 'tmt_pengangkatan' : 'tmt';
+  }
+  if (['tmt_spmt'].includes(lowerH)) return 'tmt_spmt';
+  if (['nama', 'nama_pegawai', 'nama_dosen', 'nama_tendik'].includes(lowerH)) return 'nama_lengkap';
+  if (['nip_pegawai', 'nik', 'no_induk'].includes(lowerH)) return 'nip';
+  if (['tempat_lahir', 'tempat_lhr', 'tmplhr', 'tempat'].includes(lowerH)) return 'tmp_lhr';
+  if (['tanggal_lahir', 'tanggal_lhr', 'tgllhr', 'tgl_lahir', 'tgllahir'].includes(lowerH)) return 'tgl_lhr';
+  if (['jenjang', 'tingkat_pendidikan', 'jenjang_pendidikan'].includes(lowerH)) return 'pendidikan';
+  if (['prodi', 'program_studi', 'bidang_ilmu'].includes(lowerH)) return 'jurusan';
+  if (['tahun_lulus', 'th_lulus', 'tahun'].includes(lowerH)) return 'thn_lulus';
+  if (['gol', 'gol_ruang', 'golongan_ruang'].includes(lowerH)) return 'golongan';
+  if (['pangkat_golongan'].includes(lowerH)) return 'pangkat';
+  if (['gaji', 'gapok', 'nominal_gaji', 'gaji_cptu'].includes(lowerH)) return 'gaji_pokok';
+  if (['total', 'gaji_total', 'total_gaji_diterima', 'totalgaji'].includes(lowerH)) return 'total_gaji';
+  if (['jabatan_fungsional', 'tugas'].includes(lowerH)) return 'jabatan';
+  if (['unit', 'unit_kerja', 'fakultas', 'departemen'].includes(lowerH)) return 'unit_es_ii';
+  if (['no_mcu', 'nomormcu'].includes(lowerH)) return 'nomor_mcu';
+  if (['tanggal_mcu', 'tglmcu'].includes(lowerH)) return 'tgl_mcu';
+  if (['golongan_latsar', 'gollatsar'].includes(lowerH)) return 'gol_latsar';
+  if (['tahun_latsar', 'thnlatsar'].includes(lowerH)) return 'thn_latsar';
+
+  return lowerH;
+}
+
+function cptuPopulateSheetSelector(sheetNames) {
+  const wrap = document.getElementById('cptu_batchSheetSelectWrap');
+  const sel = document.getElementById('cptu_batchSheetSelect');
+  const info = document.getElementById('cptu_batchSheetInfo');
+  if (!wrap || !sel) return;
+
+  if (!sheetNames || sheetNames.length <= 0) {
+    wrap.style.display = 'none';
+    sel.innerHTML = '';
+    return;
+  }
+
+  sel.innerHTML = sheetNames.map((name, i) => `<option value="${escHtml(name)}" ${i === 0 ? 'selected' : ''}>${escHtml(name)}</option>`).join('');
+  if (info) info.textContent = `${sheetNames.length} sheet terdeteksi`;
+  wrap.style.display = 'flex';
+}
+
+function cptuHandleSheetChange(sheetName) {
+  if (!sheetName) return;
+  showToast('info', `Memuat data dari sheet: ${sheetName}...`);
+
+  // Jika sumber dari Google Spreadsheet sheetsData
+  if (window.CPTU_ACTIVE_SHEETS_DATA && window.CPTU_ACTIVE_SHEETS_DATA[sheetName]) {
+    cptuProcessParsedRows(window.CPTU_ACTIVE_SHEETS_DATA[sheetName]);
+    showToast('success', `Sheet "${sheetName}" berhasil dimuat.`);
+    return;
+  }
+
+  // Jika sumber dari Excel Workbook lokal
+  if (window.CPTU_ACTIVE_WORKBOOK) {
+    const ws = window.CPTU_ACTIVE_WORKBOOK.Sheets[sheetName];
+    if (ws) {
+      const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+      cptuProcessParsedRows(rawRows);
+      showToast('success', `Sheet "${sheetName}" berhasil dimuat.`);
+      return;
+    }
+  }
+
+  showToast('error', `Sheet "${sheetName}" tidak ditemukan.`);
 }
 
 function cptuUpdateDynamicBadges(placeholders) {
   const container = document.getElementById('cptu_batchPlaceholderBadges');
   if (!container) return;
 
-  const EXCLUDE = new Set(['pimpinan', 'nama_pimpinan', 'nama_jabatan', 'today']);
-  const isSpmt = (BUAT_SK.jenisSk === 'SPMT CPTU');
-
-  let fieldKeys = (placeholders && placeholders.length > 0)
-    ? placeholders.filter(p => {
-        if (!p) return false;
-        const s = String(p).trim();
-        if (s.startsWith('#') || s.startsWith('/')) return false;
-        if (EXCLUDE.has(s.toLowerCase())) return false;
-        return true;
-      })
-    : [];
-
-  if (!fieldKeys.length) {
-    fieldKeys = isSpmt ? [
-      'nomor_spmt', 'tmt', 'nama_lengkap', 'nip', 'tmp_lhr',
-      'tgl_lhr', 'pendidikan', 'jurusan', 'thn_lulus', 'pangkat',
-      'golongan', 'gaji_pokok', 'total_gaji', 'jabatan', 'unit_es_ii'
-    ] : [
-      'nomor_sk', 'tmt', 'nama_lengkap', 'nip', 'tmp_lhr',
-      'tgl_lhr', 'pendidikan', 'jurusan', 'thn_lulus', 'pangkat',
-      'golongan', 'gaji_pokok', 'total_gaji', 'jabatan', 'unit_es_ii'
-    ];
-  }
-
-  container.innerHTML = fieldKeys.map(k => `<span class="tag-chip"><code>{{${k}}}</code></span>`).join(' ');
+  const cols = cptuGetActiveColumns();
+  container.innerHTML = cols.map(k => `<span class="tag-chip"><code>{{${k}}}</code></span>`).join(' ');
 }
 
 function cptuDownloadExcelTemplate() {
@@ -17602,33 +17711,8 @@ function cptuDownloadExcelTemplate() {
     return;
   }
 
-  const isSpmt = (BUAT_SK.jenisSk === 'SPMT CPTU');
-  const EXCLUDE = new Set(['pimpinan', 'nama_pimpinan', 'nama_jabatan', 'today']);
-
-  let fieldKeys = [];
-  if (BUAT_SK.placeholders && BUAT_SK.placeholders.length > 0) {
-    fieldKeys = BUAT_SK.placeholders.filter(p => {
-      if (!p) return false;
-      const s = String(p).trim();
-      if (s.startsWith('#') || s.startsWith('/')) return false;
-      if (EXCLUDE.has(s.toLowerCase())) return false;
-      return true;
-    });
-  }
-
-  if (!fieldKeys.length) {
-    fieldKeys = isSpmt ? [
-      'nomor_spmt', 'tmt', 'nama_lengkap', 'nip', 'tmp_lhr',
-      'tgl_lhr', 'pendidikan', 'jurusan', 'thn_lulus', 'pangkat',
-      'golongan', 'gaji_pokok', 'total_gaji', 'jabatan', 'unit_es_ii'
-    ] : [
-      'nomor_sk', 'tmt', 'nama_lengkap', 'nip', 'tmp_lhr',
-      'tgl_lhr', 'pendidikan', 'jurusan', 'thn_lulus', 'pangkat',
-      'golongan', 'gaji_pokok', 'total_gaji', 'jabatan', 'unit_es_ii'
-    ];
-  }
-
-  const headers = fieldKeys.map(k => `{{${k}}}`);
+  const cols = cptuGetActiveColumns();
+  const headers = cols.map(k => `{{${k}}}`);
 
   const getSampleVal = (k, idx) => {
     const key = k.toLowerCase();
@@ -17638,7 +17722,11 @@ function cptuDownloadExcelTemplate() {
     if (key.includes('nomor_sk') || key.includes('nomorsk') || key.includes('no_sk')) {
       return idx === 1 ? '001/UN7.A/KP/2026' : '002/UN7.A/KP/2026';
     }
-    if (key.includes('tmt')) return '1 Maret 2026';
+    if (key.includes('nomor_mcu')) return idx === 1 ? 'MCU/001/2026' : 'MCU/002/2026';
+    if (key.includes('tgl_mcu')) return idx === 1 ? '2026-01-15' : '2026-01-20';
+    if (key.includes('gol_latsar')) return idx === 1 ? 'III' : 'III';
+    if (key.includes('thn_latsar')) return idx === 1 ? '2025' : '2025';
+    if (key.includes('tmt_pengangkatan') || key.includes('tmt')) return '1 Maret 2026';
     if (key.includes('nama')) return idx === 1 ? 'Dr. Budi Santoso, S.Kom., M.Cs.' : 'Siti Rahmawati, S.T., M.Eng.';
     if (key.includes('nip')) return idx === 1 ? 'H.7.199001012026031001' : 'H.7.199205122026032002';
     if (key.includes('tmp') || key.includes('tempat')) return idx === 1 ? 'Semarang' : 'Surakarta';
@@ -17655,17 +17743,17 @@ function cptuDownloadExcelTemplate() {
     return '';
   };
 
-  const sampleRow1 = fieldKeys.map(k => getSampleVal(k, 1));
-  const sampleRow2 = fieldKeys.map(k => getSampleVal(k, 2));
+  const sampleRow1 = cols.map(k => getSampleVal(k, 1));
+  const sampleRow2 = cols.map(k => getSampleVal(k, 2));
 
   const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow1, sampleRow2]);
-  ws['!cols'] = fieldKeys.map(k => ({ wch: Math.max(k.length + 6, 16) }));
+  ws['!cols'] = cols.map(k => ({ wch: Math.max(k.length + 6, 16) }));
 
-  const docName = isSpmt ? 'SPMT_CPTU' : 'SK_CPTU';
+  const cleanDoc = String(BUAT_SK.jenisSk || 'Dokumen').replace(/[^a-zA-Z0-9_\-]/g, '_');
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, `Template_${docName}`);
-  XLSX.writeFile(wb, `Format_Template_${docName}_Batch.xlsx`);
-  showToast('success', `📥 Template Excel ${isSpmt ? 'SPMT CPTU' : 'SK CPTU'} berhasil diunduh.`);
+  XLSX.utils.book_append_sheet(wb, ws, `Template_${cleanDoc}`);
+  XLSX.writeFile(wb, `Format_Template_${cleanDoc}_Batch.xlsx`);
+  showToast('success', `📥 Template Excel ${BUAT_SK.jenisSk} berhasil diunduh.`);
 }
 
 function cptuHandleBatchFileUpload(e) {
@@ -17686,6 +17774,11 @@ function cptuHandleBatchFileUpload(e) {
     try {
       const data = new Uint8Array(evt.target.result);
       const wb = XLSX.read(data, { type: 'array', cellDates: true });
+      window.CPTU_ACTIVE_WORKBOOK = wb;
+      window.CPTU_ACTIVE_SHEETS_DATA = null;
+
+      cptuPopulateSheetSelector(wb.SheetNames);
+
       const firstSheetName = wb.SheetNames[0];
       const ws = wb.Sheets[firstSheetName];
       const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
@@ -17709,12 +17802,29 @@ async function cptuFetchGoogleSpreadsheet() {
   try {
     const res = await rpc('fetchSpreadsheetDataForCptu', [SESSION.token, { url }]);
     hideLoadingOverlay();
-    if (res && res.success && res.csvText) {
-      const wb = XLSX.read(res.csvText, { type: 'string' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
-      cptuProcessParsedRows(rawRows);
-      showToast('success', 'Data Google Spreadsheet berhasil dimuat!');
+    if (res && res.success) {
+      if (res.sheetNames && res.sheetNames.length > 0 && res.sheetsData) {
+        window.CPTU_ACTIVE_WORKBOOK = null;
+        window.CPTU_ACTIVE_SHEETS_DATA = res.sheetsData;
+        cptuPopulateSheetSelector(res.sheetNames);
+
+        const firstSheetName = res.sheetNames[0];
+        const rawRows = res.sheetsData[firstSheetName] || [];
+        cptuProcessParsedRows(rawRows);
+        showToast('success', `Data Google Spreadsheet berhasil dimuat (${res.sheetNames.length} sheet ditemukan)!`);
+      } else if (res.csvText) {
+        const wb = XLSX.read(res.csvText, { type: 'string' });
+        window.CPTU_ACTIVE_WORKBOOK = wb;
+        window.CPTU_ACTIVE_SHEETS_DATA = null;
+        cptuPopulateSheetSelector(wb.SheetNames);
+
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawRows = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+        cptuProcessParsedRows(rawRows);
+        showToast('success', 'Data Google Spreadsheet berhasil dimuat!');
+      } else {
+        showToast('error', (res && res.message) || 'Gagal membaca Google Spreadsheet.');
+      }
     } else {
       showToast('error', (res && res.message) || 'Gagal membaca Google Spreadsheet.');
     }
@@ -17726,16 +17836,11 @@ async function cptuFetchGoogleSpreadsheet() {
 
 function cptuProcessParsedRows(rawRows) {
   if (!Array.isArray(rawRows) || !rawRows.length) {
-    showToast('error', 'Tidak ada data baris ditemukan pada file/spreadsheet.');
+    showToast('error', 'Tidak ada data baris ditemukan pada sheet/file.');
     return;
   }
 
-  const REQUIRED_COLS = [
-    'nomor_sk', 'nomor_spmt', 'tmt', 'nama_lengkap', 'nip', 'tmp_lhr', 'tgl_lhr',
-    'pendidikan', 'jurusan', 'thn_lulus', 'pangkat', 'golongan',
-    'gaji_pokok', 'total_gaji', 'jabatan', 'unit_es_ii'
-  ];
-
+  const activeCols = cptuGetActiveColumns();
   const parsed = [];
   rawRows.forEach((row, idx) => {
     // Abaikan baris kosong
@@ -17748,43 +17853,47 @@ function cptuProcessParsedRows(rawRows) {
       r[normKey] = String(row[colKey] != null ? row[colKey] : '').trim();
     });
 
-    // Pastikan kolom standar terinisialisasi
-    REQUIRED_COLS.forEach(col => {
+    // Pastikan semua kolom aktif ada
+    activeCols.forEach(col => {
       if (r[col] === undefined) r[col] = '';
     });
 
-    // Interoperabilitas template SK CPTU dan SPMT CPTU
+    // Interoperabilitas nomor & tmt
     if (r.nomor_sk && !r.nomor_spmt) r.nomor_spmt = r.nomor_sk;
     if (r.nomor_spmt && !r.nomor_sk) r.nomor_sk = r.nomor_spmt;
     if (r.tmt && !r.tmt_spmt) r.tmt_spmt = r.tmt;
     if (r.tmt_spmt && !r.tmt) r.tmt = r.tmt_spmt;
+    if (r.tmt && !r.tmt_pengangkatan && activeCols.includes('tmt_pengangkatan')) r.tmt_pengangkatan = r.tmt;
+    if (r.tmt_pengangkatan && !r.tmt && activeCols.includes('tmt')) r.tmt = r.tmt_pengangkatan;
 
     // Fallback nama jika nama_lengkap belum ada
     if (!r.nama_lengkap && r.nama) r.nama_lengkap = r.nama;
 
     // Bersihkan format tanggal jika berasal dari ISO date
-    if (r.tgl_lhr && r.tgl_lhr.includes('T')) {
-      r.tgl_lhr = r.tgl_lhr.split('T')[0];
-    }
-    if (r.tmt && r.tmt.includes('T')) {
-      r.tmt = r.tmt.split('T')[0];
-    }
+    ['tgl_lhr', 'tmt', 'tmt_pengangkatan', 'tgl_mcu'].forEach(dateKey => {
+      if (r[dateKey] && r[dateKey].includes('T')) {
+        r[dateKey] = r[dateKey].split('T')[0];
+      }
+    });
 
     // Auto resolve pangkat jika kosong dan golongan terisi
     if (r.golongan && !r.pangkat && typeof getPangkatForGolongan === 'function') {
-      r.pangkat = getPangkatForGolongan(r.golongan, true) || '';
+      const isCptu = ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk);
+      r.pangkat = getPangkatForGolongan(r.golongan, isCptu) || '';
     }
 
-    // Hitung otomatis total_gaji (80% x gaji_pokok)
-    const numGaji = parseInt(String(r.gaji_pokok || '').replace(/[^0-9]/g, ''), 10);
-    if (!isNaN(numGaji) && numGaji > 0) {
-      const g80 = Math.round(numGaji * 0.8);
-      if (!r.total_gaji) {
-        r.total_gaji = 'Rp ' + g80.toLocaleString('id-ID');
-      } else {
-        const numTotal = parseInt(String(r.total_gaji).replace(/[^0-9]/g, ''), 10);
-        if (!isNaN(numTotal) && numTotal > 0 && !String(r.total_gaji).toLowerCase().includes('rp')) {
-          r.total_gaji = 'Rp ' + numTotal.toLocaleString('id-ID');
+    // Hitung otomatis total_gaji jika CPTU (80% x gaji_pokok)
+    if (['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk)) {
+      const numGaji = parseInt(String(r.gaji_pokok || '').replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(numGaji) && numGaji > 0) {
+        const g80 = Math.round(numGaji * 0.8);
+        if (!r.total_gaji) {
+          r.total_gaji = 'Rp ' + g80.toLocaleString('id-ID');
+        } else {
+          const numTotal = parseInt(String(r.total_gaji).replace(/[^0-9]/g, ''), 10);
+          if (!isNaN(numTotal) && numTotal > 0 && !String(r.total_gaji).toLowerCase().includes('rp')) {
+            r.total_gaji = 'Rp ' + numTotal.toLocaleString('id-ID');
+          }
         }
       }
     }
@@ -17799,11 +17908,12 @@ function cptuProcessParsedRows(rawRows) {
 
   window.CPTU_BATCH_ROWS = parsed;
   cptuRenderBatchTable();
-  showToast('success', `Berhasil memuat ${parsed.length} baris data CPTU.`);
+  showToast('success', `Berhasil memuat ${parsed.length} baris data ${BUAT_SK.jenisSk || ''}.`);
 }
 
 function cptuRenderBatchTable() {
   const wrap = document.getElementById('cptu_batchPreviewWrap');
+  const theadRow = document.getElementById('cptu_batchTableHeadRow');
   const tbody = document.getElementById('cptu_batchTableBody');
   const countBadge = document.getElementById('cptu_batchCountBadge');
 
@@ -17820,42 +17930,190 @@ function cptuRenderBatchTable() {
   wrap.style.display = 'block';
   if (countBadge) countBadge.textContent = `${rows.length} Data`;
 
+  const cols = cptuGetActiveColumns();
+
+  // Render header
+  if (theadRow) {
+    theadRow.innerHTML = `
+      <th style="padding:6px 8px; width:36px; text-align:center;">#</th>
+      ${cols.map(c => `<th style="padding:6px 10px; min-width:${c === 'nama_lengkap' ? '200px' : (c === 'nip' ? '150px' : '120px')};">${escHtml(cptuFormatHeaderLabel(c))}</th>`).join('')}
+      <th style="padding:6px 8px; width:44px; text-align:center;">Aksi</th>
+    `;
+  }
+
+  // Render baris tabel dengan input interaktif & auto-fill dari Data Utama
   tbody.innerHTML = rows.map((r, i) => {
-    // Tampilan rapi gaji pokok
-    let gajiDisp = r.gaji_pokok || '-';
-    const numGaji = parseInt(String(r.gaji_pokok).replace(/[^0-9]/g, ''), 10);
-    if (!isNaN(numGaji) && numGaji > 0) {
-      gajiDisp = 'Rp ' + numGaji.toLocaleString('id-ID');
-    }
-
-    // Tampilan rapi total gaji (80%)
-    let totalGajiDisp = r.total_gaji || '-';
-    const numTotal = parseInt(String(r.total_gaji).replace(/[^0-9]/g, ''), 10);
-    if (!isNaN(numTotal) && numTotal > 0) {
-      totalGajiDisp = 'Rp ' + numTotal.toLocaleString('id-ID');
-    }
-
-    const nomorDoc = r.nomor_spmt || r.nomor_sk || '-';
-
     return `
       <tr style="border-bottom:1px solid var(--border,#e2e8f0);">
-        <td style="padding:6px 10px; text-align:center; font-weight:600; color:var(--text-muted);">${i + 1}</td>
-        <td style="padding:6px 10px; font-weight:700;">${escHtml(r.nama_lengkap || '-')}</td>
-        <td style="padding:6px 10px; font-family:monospace; color:var(--primary); font-weight:600;">${escHtml(r.nip || '-')}</td>
-        <td style="padding:6px 10px;">${escHtml(nomorDoc)}</td>
-        <td style="padding:6px 10px;">${escHtml(r.tmt || '-')}</td>
-        <td style="padding:6px 10px; font-weight:600;">${escHtml(r.golongan || '-')}</td>
-        <td style="padding:6px 10px;">${escHtml(r.pangkat || '-')}</td>
-        <td style="padding:6px 10px; font-weight:600; color:#16a34a;">${escHtml(gajiDisp)}</td>
-        <td style="padding:6px 10px; font-weight:600; color:#0284c7;">${escHtml(totalGajiDisp)}</td>
-        <td style="padding:6px 10px;">${escHtml(r.jabatan || '-')}</td>
-        <td style="padding:6px 10px;">${escHtml(r.unit_es_ii || '-')}</td>
-        <td style="padding:6px 10px; text-align:center;">
-          <button type="button" class="btn btn-sm btn-ghost" style="color:var(--danger,#ef4444); padding:2px 6px; font-size:11px;" onclick="cptuRemoveBatchRow(${i})" title="Hapus baris ini">🗑️</button>
+        <td style="padding:6px 8px; text-align:center; font-weight:600; color:var(--text-muted);">${i + 1}</td>
+        ${cols.map(c => {
+          const val = r[c] != null ? r[c] : '';
+          if (c === 'nama_lengkap') {
+            return `
+              <td style="padding:4px 6px; position:relative;">
+                <input type="text" class="field-input" style="font-size:11.5px; padding:4px 8px; width:100%; font-weight:600;" value="${escHtml(val)}" placeholder="Ketik nama untuk cari data utama..." oninput="cptuSearchEmpInTable(event, ${i})" autocomplete="off" />
+                <div id="cptu_empDropdown_${i}" style="display:none; position:absolute; top:100%; left:6px; right:6px; z-index:9999; background:var(--surface,#fff); border:1px solid var(--border,#cbd5e1); border-radius:6px; box-shadow:0 8px 20px rgba(0,0,0,0.15); max-height:180px; overflow-y:auto;"></div>
+              </td>
+            `;
+          }
+          const isNip = (c === 'nip');
+          return `
+            <td style="padding:4px 6px;">
+              <input type="text" id="cptu_cell_${i}_${c}" class="field-input" style="font-size:11.5px; padding:4px 8px; width:100%; ${isNip ? 'font-family:monospace; color:var(--primary,#1e40af); font-weight:600;' : ''}" value="${escHtml(val)}" oninput="cptuUpdateBatchCell(${i}, '${c}', this.value)" placeholder="${escHtml(cptuFormatHeaderLabel(c))}" />
+            </td>
+          `;
+        }).join('')}
+        <td style="padding:4px 6px; text-align:center;">
+          <button type="button" class="btn btn-sm btn-ghost" style="color:var(--danger,#ef4444); padding:2px 6px; font-size:12px;" onclick="cptuRemoveBatchRow(${i})" title="Hapus baris ini">🗑️</button>
         </td>
       </tr>
     `;
   }).join('');
+}
+
+// Tambah baris baru ke tabel kolektif secara manual
+function cptuManualAddRow() {
+  if (!window.CPTU_BATCH_ROWS) window.CPTU_BATCH_ROWS = [];
+  const cols = cptuGetActiveColumns();
+  const newRow = {};
+  cols.forEach(c => newRow[c] = '');
+
+  if (BUAT_SK.unitEsIi) newRow.unit_es_ii = BUAT_SK.unitEsIi;
+
+  window.CPTU_BATCH_ROWS.push(newRow);
+  cptuRenderBatchTable();
+
+  // Fokuskan kursor ke input Nama Lengkap baris baru
+  const wrap = document.getElementById('cptu_batchPreviewWrap');
+  if (wrap) wrap.style.display = 'block';
+  setTimeout(() => {
+    const lastRowInputs = document.querySelectorAll('#cptu_batchTableBody tr:last-child input');
+    if (lastRowInputs && lastRowInputs[0]) lastRowInputs[0].focus();
+  }, 100);
+}
+
+// Pencarian pegawai real-time di dalam baris tabel
+let cptuTableSearchTimer = null;
+function cptuSearchEmpInTable(event, rowIdx) {
+  clearTimeout(cptuTableSearchTimer);
+  const inputEl = event.target;
+  const q = (inputEl.value || '').trim();
+  const dropdown = document.getElementById(`cptu_empDropdown_${rowIdx}`);
+  if (!dropdown) return;
+
+  // Update nilai nama_lengkap di data baris
+  if (window.CPTU_BATCH_ROWS && window.CPTU_BATCH_ROWS[rowIdx]) {
+    window.CPTU_BATCH_ROWS[rowIdx].nama_lengkap = inputEl.value;
+  }
+
+  if (q.length < 2) {
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+    return;
+  }
+
+  cptuTableSearchTimer = setTimeout(async () => {
+    try {
+      dropdown.innerHTML = '<div style="padding:6px 10px;font-size:11px;color:var(--text-muted);text-align:center;">🔍 Mencari di Data Utama...</div>';
+      dropdown.style.display = 'block';
+
+      const results = await rpc('searchEmployees', [SESSION.token, q]);
+      if (results && results.length > 0) {
+        dropdown.innerHTML = results.map(e => `
+          <div class="autocomplete-item" onclick="cptuSelectEmpForTableRow(${rowIdx}, '${e.nip}')" style="padding:6px 10px;cursor:pointer;font-size:11.5px;border-bottom:1px solid var(--border);transition:background 0.15s ease;" onmouseover="this.style.background='var(--surface-alt)'" onmouseout="this.style.background='transparent'">
+            <div style="font-weight:600;color:var(--text-main);">${escHtml(e.nama)}</div>
+            <div style="font-size:10.5px;color:var(--text-muted);">NIP: ${escHtml(e.nip)} | ${escHtml(e.unitEsIi || '')}</div>
+          </div>`).join('');
+        dropdown.style.display = 'block';
+      } else {
+        dropdown.innerHTML = '<div style="padding:8px 10px;font-size:11px;color:var(--text-muted);text-align:center;">Pegawai tidak ditemukan di Data Utama.</div>';
+        dropdown.style.display = 'block';
+      }
+    } catch(err) {
+      dropdown.innerHTML = `<div style="padding:8px 10px;font-size:11px;color:#ef4444;text-align:center;">Gagal mencari: ${escHtml(err.message)}</div>`;
+      dropdown.style.display = 'block';
+    }
+  }, 300);
+}
+
+// Auto-fill baris tabel saat pegawai dipilih dari pencarian Data Utama
+async function cptuSelectEmpForTableRow(rowIdx, nip) {
+  if (!window.CPTU_BATCH_ROWS || !window.CPTU_BATCH_ROWS[rowIdx]) return;
+  const dropdown = document.getElementById(`cptu_empDropdown_${rowIdx}`);
+  if (dropdown) dropdown.style.display = 'none';
+
+  let emp = null;
+  try {
+    const res = await rpc('getEmployeeFullData', [SESSION.token, nip]);
+    emp = (res && res.data) ? res.data : res;
+  } catch(_) {}
+
+  if (!emp) {
+    showToast('error', 'Gagal memuat detail data pegawai.');
+    return;
+  }
+
+  const r = window.CPTU_BATCH_ROWS[rowIdx];
+  const empNama = String(emp.nama_lengkap || emp.nama || '').trim();
+  const empGol = emp.golongan || emp.gol || '';
+  const isCptu = ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk);
+  const empPangkat = emp.pangkat || (typeof getPangkatForGolongan === 'function' ? getPangkatForGolongan(empGol, isCptu) : '');
+  const empUnit = emp.unit_es_ii || emp.unit || BUAT_SK.unitEsIi || '';
+  const empJabatan = emp.jabatan || '';
+  const empTmt = emp.tmt_pengangkatan || emp.tmt || '';
+
+  r.nama_lengkap = empNama;
+  r.nip = emp.nip || nip;
+  if (empGol && r.golongan !== undefined) r.golongan = empGol;
+  if (empPangkat && r.pangkat !== undefined) r.pangkat = empPangkat;
+  if (empUnit && r.unit_es_ii !== undefined) r.unit_es_ii = empUnit;
+  if (empJabatan && r.jabatan !== undefined) r.jabatan = empJabatan;
+  if (empTmt) {
+    if (r.tmt_pengangkatan !== undefined) r.tmt_pengangkatan = empTmt;
+    if (r.tmt !== undefined) r.tmt = empTmt;
+  }
+  if (emp.pendidikan && r.pendidikan !== undefined) r.pendidikan = emp.pendidikan;
+  if ((emp.jurusan || emp.prodi) && r.jurusan !== undefined) r.jurusan = emp.jurusan || emp.prodi;
+  if ((emp.thn_lulus || emp.tahun_lulus) && r.thn_lulus !== undefined) r.thn_lulus = emp.thn_lulus || emp.tahun_lulus;
+  if ((emp.tmp_lhr || emp.tempat_lahir) && r.tmp_lhr !== undefined) r.tmp_lhr = emp.tmp_lhr || emp.tempat_lahir;
+  if ((emp.tgl_lhr || emp.tanggal_lahir) && r.tgl_lhr !== undefined) r.tgl_lhr = emp.tgl_lhr || emp.tanggal_lahir;
+
+  // Auto hitung total_gaji jika CPTU dan sudah ada gaji pokok
+  if (isCptu && r.gaji_pokok) {
+    const numGaji = parseInt(String(r.gaji_pokok).replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(numGaji) && numGaji > 0 && !r.total_gaji) {
+      r.total_gaji = 'Rp ' + Math.round(numGaji * 0.8).toLocaleString('id-ID');
+    }
+  }
+
+  showToast('success', `Data "${empNama}" berhasil diisi dari Data Utama.`);
+  cptuRenderBatchTable();
+}
+
+// Update nilai kolom tabel manual saat user mengetik
+function cptuUpdateBatchCell(rowIdx, colKey, val) {
+  if (!window.CPTU_BATCH_ROWS || !window.CPTU_BATCH_ROWS[rowIdx]) return;
+  window.CPTU_BATCH_ROWS[rowIdx][colKey] = val;
+
+  // Khusus gaji pokok pada CPTU: auto update total_gaji (80%)
+  if (colKey === 'gaji_pokok' && ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk)) {
+    const numGaji = parseInt(String(val).replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(numGaji) && numGaji > 0) {
+      window.CPTU_BATCH_ROWS[rowIdx].total_gaji = 'Rp ' + Math.round(numGaji * 0.8).toLocaleString('id-ID');
+      const totInput = document.getElementById(`cptu_cell_${rowIdx}_total_gaji`);
+      if (totInput) totInput.value = window.CPTU_BATCH_ROWS[rowIdx].total_gaji;
+    }
+  }
+}
+
+// Tutup dropdown autocomplete saat klik di luar
+if (!window._cptuEmpDropdownListenerAdded) {
+  window._cptuEmpDropdownListenerAdded = true;
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('[id^="cptu_empDropdown_"]') && !e.target.closest('input[oninput*="cptuSearchEmpInTable"]')) {
+      document.querySelectorAll('[id^="cptu_empDropdown_"]').forEach(d => { d.style.display = 'none'; });
+    }
+  });
 }
 
 function cptuRemoveBatchRow(idx) {
@@ -17866,19 +18124,25 @@ function cptuRemoveBatchRow(idx) {
 
 function cptuResetBatchData() {
   window.CPTU_BATCH_ROWS = [];
+  window.CPTU_ACTIVE_WORKBOOK = null;
+  window.CPTU_ACTIVE_SHEETS_DATA = null;
   const fileInp = document.getElementById('cptu_batchFileInput');
   if (fileInp) fileInp.value = '';
   const fileNameEl = document.getElementById('cptu_batchFileName');
   if (fileNameEl) fileNameEl.textContent = 'Belum ada file dipilih';
   const urlInp = document.getElementById('cptu_batchSpreadsheetUrl');
   if (urlInp) urlInp.value = '';
+  const sheetWrap = document.getElementById('cptu_batchSheetSelectWrap');
+  if (sheetWrap) sheetWrap.style.display = 'none';
+  const sheetSel = document.getElementById('cptu_batchSheetSelect');
+  if (sheetSel) sheetSel.innerHTML = '';
   cptuRenderBatchTable();
 }
 
 async function cptuExecuteBatchGenerate() {
   const rows = window.CPTU_BATCH_ROWS || [];
   if (!rows.length) {
-    showToast('error', 'Tidak ada data untuk digenerate. Silakan upload Excel atau link Spreadsheet terlebih dahulu.');
+    showToast('error', 'Tidak ada data untuk digenerate. Silakan upload Excel, Spreadsheet, atau tambah baris di tabel.');
     return;
   }
 
@@ -17888,8 +18152,9 @@ async function cptuExecuteBatchGenerate() {
   }
 
   const jenisSk = BUAT_SK.jenisSk || 'SK CPTU';
-  const isSpmt = (jenisSk === 'SPMT CPTU');
-  const prefix = isSpmt ? 'SPMT_CPTU' : 'SK_CPTU';
+  const isSpmt = (jenisSk === 'SPMT CPTU' || jenisSk === 'SPMT');
+  const isPtu = (jenisSk === 'SK PTU 100%');
+  const prefix = isPtu ? 'SK_PTU_100' : (isSpmt ? (jenisSk === 'SPMT' ? 'SPMT' : 'SPMT_CPTU') : 'SK_CPTU');
   const templateId = BUAT_SK.templateId || ('default_' + jenisSk.toLowerCase().replace(/[^a-z0-9]/g, '_'));
   const tipeTemplate = BUAT_SK.tipeTemplate || document.getElementById('buatSk_tipeTemplate')?.value || 'docx';
 
@@ -17933,6 +18198,8 @@ async function cptuExecuteBatchGenerate() {
     if (form_data.nomor_spmt && !form_data.nomor_sk) form_data.nomor_sk = form_data.nomor_spmt;
     if (form_data.tmt && !form_data.tmt_spmt) form_data.tmt_spmt = form_data.tmt;
     if (form_data.tmt_spmt && !form_data.tmt) form_data.tmt = form_data.tmt_spmt;
+    if (form_data.tmt && !form_data.tmt_pengangkatan) form_data.tmt_pengangkatan = form_data.tmt;
+    if (form_data.tmt_pengangkatan && !form_data.tmt) form_data.tmt = form_data.tmt_pengangkatan;
 
     try {
       const res = await rpc('generateSkBaru', [SESSION.token, {
@@ -17945,7 +18212,7 @@ async function cptuExecuteBatchGenerate() {
       }]);
 
       if (res && res.success) {
-        const safeNama = String(row.nama_lengkap || row.nip || `Dokumen_${i+1}`).replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const safeNama = String(row.nama_lengkap || row.nama || row.nip || `Dokumen_${i+1}`).replace(/[^a-zA-Z0-9_\-]/g, '_');
         const fileName = `${String(i + 1).padStart(2, '0')}_${prefix}_${safeNama}.docx`;
 
         if (res.base64) {
@@ -17963,8 +18230,8 @@ async function cptuExecuteBatchGenerate() {
           no: i + 1,
           nama: row.nama_lengkap || row.nama || `Pegawai #${i + 1}`,
           nip: row.nip || '-',
-          nomor: row.nomor_spmt || row.nomor_sk || '-',
-          tmt: row.tmt || row.tmt_spmt || '-',
+          nomor: row.nomor_sk || row.nomor_spmt || '-',
+          tmt: row.tmt_pengangkatan || row.tmt || row.tmt_spmt || '-',
           golongan: row.golongan || '-',
           pangkat: row.pangkat || '-',
           jabatan: row.jabatan || '-',
@@ -17976,11 +18243,11 @@ async function cptuExecuteBatchGenerate() {
         successCount++;
       } else {
         failCount++;
-        console.warn(`[Batch CPTU] Gagal row ${i+1}:`, res?.message);
+        console.warn(`[Batch Generate] Gagal row ${i+1}:`, res?.message);
       }
     } catch(errRow) {
       failCount++;
-      console.warn(`[Batch CPTU] Error row ${i+1}:`, errRow);
+      console.warn(`[Batch Generate] Error row ${i+1}:`, errRow);
     }
   }
 

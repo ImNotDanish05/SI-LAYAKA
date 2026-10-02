@@ -2086,20 +2086,20 @@
                   <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
                     <div>
                       <h4 style="margin:0 0 4px 0; font-size:15px; font-weight:700; color:var(--primary,#1e40af); display:flex; align-items:center; gap:8px;">
-                        <span id="cptu_batchCardTitle">⚡ Mode Pembuatan Dokumen SK CPTU</span>
+                        <span id="cptu_batchCardTitle">⚡ Mode Pembuatan Dokumen Kolektif</span>
                       </h4>
-                      <p style="margin:0; font-size:12px; color:var(--text-muted);">Pilih apakah ingin mengisi form satu dokumen secara manual atau import banyak dokumen sekaligus melalui file Excel / Spreadsheet.</p>
+                      <p style="margin:0; font-size:12px; color:var(--text-muted);" id="cptu_batchCardSubtitle">Pilih apakah ingin mengisi form satu dokumen secara manual atau memproses dokumen secara kolektif (Excel, Google Spreadsheet, atau Input Tabel).</p>
                     </div>
                     <!-- Toggle Pill -->
                     <div style="display:inline-flex; background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:8px; padding:3px; gap:4px;">
                       <button type="button" id="cptu_modeSingleBtn" class="btn btn-sm" style="background:var(--primary,#1e40af); color:#fff; border-radius:6px; font-size:12px; padding:6px 14px; font-weight:600; border:none; cursor:pointer;" onclick="cptuSwitchMode('single')">📝 Form Tunggal</button>
-                      <button type="button" id="cptu_modeBatchBtn" class="btn btn-sm btn-ghost" style="border-radius:6px; font-size:12px; padding:6px 14px; font-weight:600; border:none; cursor:pointer;" onclick="cptuSwitchMode('batch')">⚡ Import Excel / Spreadsheet (Batch)</button>
+                      <button type="button" id="cptu_modeBatchBtn" class="btn btn-sm btn-ghost" style="border-radius:6px; font-size:12px; padding:6px 14px; font-weight:600; border:none; cursor:pointer;" onclick="cptuSwitchMode('batch')">⚡ Buat SK Kolektif</button>
                     </div>
                   </div>
 
-                  <!-- Container Khusus Import Batch -->
+                  <!-- Container Khusus Import Batch & Kolektif -->
                   <div id="cptu_batchSection" style="display:none; border-top:1px dashed var(--border,#cbd5e1); padding-top:14px; margin-top:8px;">
-                    <div class="grid-2 kp-grid" style="gap:14px; margin-bottom:14px;">
+                    <div class="grid-2 kp-grid" style="gap:14px; margin-bottom:12px;">
                       <!-- Opsi 1: File Excel -->
                       <div style="background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:10px; padding:14px;">
                         <label style="font-weight:700; font-size:13px; margin-bottom:6px; display:block; color:var(--text-main);">📁 Opsi 1: Upload File Excel (.xlsx / .xls / .csv)</label>
@@ -2122,6 +2122,34 @@
                           <button type="button" class="btn btn-secondary btn-sm" style="font-size:12px; white-space:nowrap;" onclick="cptuFetchGoogleSpreadsheet()">📥 Ambil Sheet</button>
                         </div>
                       </div>
+                    </div>
+
+                    <!-- Pemilih Sheet (Muncul saat file Excel atau Google Spreadsheet dimuat) -->
+                    <div id="cptu_batchSheetSelectWrap" style="display:none; background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:10px; padding:12px 14px; margin-bottom:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:18px;">📑</span>
+                        <div>
+                          <strong style="font-size:13px; color:var(--text-main);">Pilih Sheet yang Ingin Diambil:</strong>
+                          <span id="cptu_batchSheetInfo" style="font-size:11px; color:var(--text-muted); margin-left:6px;">Pilih sheet yang sesuai</span>
+                        </div>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <select id="cptu_batchSheetSelect" class="field-input" style="font-size:12px; font-weight:600; padding:6px 12px; min-width:220px; max-width:340px;" onchange="cptuHandleSheetChange(this.value)">
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- Opsi 3: Tambah Tabel Manual (Input Kolektif & Cari Data Utama) -->
+                    <div id="cptu_manualTableOptionWrap" style="background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:10px; padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                      <div>
+                        <strong style="font-size:13px; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                          <span>➕ Opsi 3: Tambah Tabel Langsung (Input Kolektif)</span>
+                        </strong>
+                        <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0 0;">Cari nama lengkap pegawai dari Data Utama untuk mengisi kolom otomatis, dan lengkapi kolom yang kosong secara manual di tabel.</p>
+                      </div>
+                      <button type="button" class="btn btn-outline btn-sm" style="font-size:12px; display:flex; align-items:center; gap:6px; border-color:var(--primary); color:var(--primary);" onclick="cptuManualAddRow()">
+                        <span>➕ Tambah Baris ke Tabel</span>
+                      </button>
                     </div>
 
                     <!-- Petunjuk Header Kolom & Tombol Download Template -->
@@ -2152,7 +2180,7 @@
                             <span class="tag-chip"><code>{{unit_es_ii}}</code></span>
                           </div>
                           <div style="font-size:11px; color:var(--text-muted); line-height:1.4;">
-                            * Untuk <strong>gaji pokok</strong> cukup input angkanya saja (misal: <code>3000000</code>), sistem otomatis memformat menjadi rupiah dan terbilang lengkap, serta menghitung 80% gaji CPTU.
+                            * Untuk <strong>gaji pokok</strong> cukup input angkanya saja (misal: <code>3000000</code>), sistem otomatis memformat menjadi rupiah dan terbilang lengkap, serta menghitung 80% gaji CPTU jika berlaku.
                           </div>
                         </div>
                         <button type="button" class="btn btn-outline btn-sm" style="font-size:12px; white-space:nowrap; display:flex; align-items:center; gap:6px; border-color:var(--primary); color:var(--primary);" onclick="cptuDownloadExcelTemplate()">
@@ -2163,17 +2191,20 @@
 
                     <!-- Tabel Pratinjau Baris Terdeteksi -->
                     <div id="cptu_batchPreviewWrap" style="display:none;">
-                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
                         <div style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:8px;">
-                          <span>📋 Pratinjau Data yang Terdeteksi</span>
+                          <span>📋 Pratinjau & Input Data Kolektif</span>
                           <span id="cptu_batchCountBadge" class="badge" style="background:var(--success,#10b981); color:#fff; font-size:11px; padding:2px 8px; border-radius:12px;">0 Data</span>
                         </div>
-                        <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger); font-size:11px;" onclick="cptuResetBatchData()">🗑️ Hapus Data</button>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                          <button type="button" class="btn btn-secondary btn-sm" style="font-size:11.5px; display:flex; align-items:center; gap:4px;" onclick="cptuManualAddRow()">➕ Tambah Baris</button>
+                          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger); font-size:11px;" onclick="cptuResetBatchData()">🗑️ Hapus Semua Data</button>
+                        </div>
                       </div>
-                      <div style="overflow-x:auto; max-height:300px; border:1px solid var(--border); border-radius:8px; background:var(--surface,#ffffff); margin-bottom:14px;">
+                      <div style="overflow-x:auto; max-height:420px; border:1px solid var(--border); border-radius:8px; background:var(--surface,#ffffff); margin-bottom:14px;">
                         <table id="cptu_batchTable" style="width:100%; border-collapse:collapse; font-size:11.5px;">
-                          <thead style="position:sticky; top:0; background:var(--surface-alt); border-bottom:1px solid var(--border); font-weight:700; text-align:left;">
-                            <tr>
+                          <thead id="cptu_batchTableHead" style="position:sticky; top:0; background:var(--surface-alt); border-bottom:1px solid var(--border); font-weight:700; text-align:left; z-index:10;">
+                            <tr id="cptu_batchTableHeadRow">
                               <th style="padding:6px 10px;">#</th>
                               <th style="padding:6px 10px;">Nama Lengkap</th>
                               <th style="padding:6px 10px;">NIP</th>

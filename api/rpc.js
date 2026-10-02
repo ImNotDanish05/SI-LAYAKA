@@ -4423,9 +4423,16 @@ const methods = {
       if (gasUrl && /^[a-zA-Z0-9_-]{20,}$/.test(cleanDriveId)) {
         try {
           const shortId = uuidv4();
+          const empNama = String(dataCtx.nama_lengkap || rawCtx.nama_lengkap || rawCtx.nama || '').trim();
+          const empNip = String(dataCtx.nip || rawCtx.nip || '').trim();
           const remoteSession = {
             id: shortId,
-            data: { nip: decoded.nip || '', nama_lengkap: decoded.nama || '', nama: decoded.nama || '', role: decoded.role || 'admin' }
+            data: {
+              nip: empNip || decoded.nip || '',
+              nama_lengkap: empNama || decoded.nama || '',
+              nama: empNama || decoded.nama || '',
+              role: decoded.role || 'admin'
+            }
           };
           const gasResponse = await fetch(gasUrl, {
             method: 'POST',
@@ -4436,7 +4443,12 @@ const methods = {
                 templateFileId: cleanDriveId,
                 formData: dataCtx,
                 dataCtx: dataCtx,
-                targetNip: rawCtx.nip || '',
+                targetNip: empNip || '',
+                employee: {
+                  nama_lengkap: empNama || 'pegawai',
+                  nama: empNama || 'pegawai',
+                  nip: empNip || ''
+                },
                 layanan: 'Buat SK dan Surat',
                 subLayanan: jenis_sk
               }],
@@ -4460,7 +4472,9 @@ const methods = {
     }
 
     const base64 = renderedBuffer.toString('base64');
-    const safeName = String(jenis_sk).replace(/[^a-zA-Z0-9&]/g, '_') + '_' + new Date().getFullYear();
+    const empNamaSafe = String(dataCtx.nama_lengkap || rawCtx.nama_lengkap || rawCtx.nama || '').trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const safeJenis = String(jenis_sk).replace(/[^a-zA-Z0-9&]/g, '_');
+    const safeName = empNamaSafe ? `${empNamaSafe}_${safeJenis}` : `${safeJenis}_${new Date().getFullYear()}`;
     return {
       success: true,
       outputType: isGdocs ? 'gdocs' : 'docx',
@@ -4717,7 +4731,7 @@ const methods = {
     return { success: true, data: result, total: result.length };
   },
 
-  /** Mengambil data mentah (CSV) dari Google Spreadsheet publik untuk SK CPTU Batch Import */
+  /** Mengambil data (XLSX / CSV) dari Google Spreadsheet publik untuk Batch Import */
   async fetchSpreadsheetDataForCptu(args) {
     const [token, payload] = extractArgs(args);
     requireRole(token, ['admin', 'super_admin']);
@@ -4728,12 +4742,38 @@ const methods = {
     const sheetId = (url.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})/) || [])[1];
     if (!sheetId) throw new Error('URL Google Spreadsheet tidak valid. Pastikan format: https://docs.google.com/spreadsheets/d/...');
 
+    // 1. Coba ekspor sebagai .xlsx agar dapat membaca seluruh sheet
+    try {
+      let XLSX;
+      try { XLSX = require('xlsx'); } catch (_) {}
+
+      if (XLSX) {
+        const xlsxUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx&id=${sheetId}`;
+        const xlsxRes = await fetch(xlsxUrl);
+        if (xlsxRes.ok) {
+          const ab = await xlsxRes.arrayBuffer();
+          const buffer = Buffer.from(ab);
+          const wb = XLSX.read(buffer, { type: 'buffer' });
+          const sheetNames = wb.SheetNames || [];
+          const sheetsData = {};
+          sheetNames.forEach(name => {
+            const ws = wb.Sheets[name];
+            sheetsData[name] = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+          });
+          return { success: true, sheetNames, sheetsData };
+        }
+      }
+    } catch (xlsxErr) {
+      console.warn('[fetchSpreadsheetDataForCptu] XLSX multi-sheet export error, fallback to CSV:', xlsxErr.message);
+    }
+
+    // 2. Fallback ke CSV jika xlsx tidak berhasil
     const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&id=${sheetId}`;
     const csvRes = await fetch(csvUrl);
     if (!csvRes.ok) throw new Error(`Gagal mengakses spreadsheet: HTTP ${csvRes.status}. Pastikan spreadsheet dapat diakses publik ("Anyone with the link").`);
 
     const csvText = await csvRes.text();
-    return { success: true, csvText };
+    return { success: true, csvText, sheetNames: ['Sheet1'] };
   },
 
   // ================================================================

@@ -187,10 +187,21 @@ function buildEntriesContexts_(sessionToken, employeeSession, payload) {
       let employee = e.employee;
       if (!employee) {
         try {
-          employee = targetNip ? getEmployeeFullData(sessionToken, targetNip) : employeeSession;
+          employee = targetNip ? getEmployeeFullData(sessionToken, targetNip) : null;
         } catch (_) {
-          employee = employeeSession || {};
+          employee = null;
         }
+      }
+      const namaDariForm = fd.nama_lengkap || fd.nama || '';
+      if (!employee) {
+        employee = {
+          nama_lengkap: namaDariForm || employeeSession?.nama_lengkap || employeeSession?.nama || '',
+          nama: namaDariForm || employeeSession?.nama || '',
+          nip: targetNip || employeeSession?.nip || ''
+        };
+      } else if (namaDariForm) {
+        employee.nama_lengkap = namaDariForm;
+        employee.nama = namaDariForm;
       }
       return {
         employee: employee,
@@ -378,10 +389,14 @@ function generateDocument(sessionToken, payload) {
     const entries = buildEntriesContexts_(sessionToken, employeeSession, payload);
     if (!entries.length) return { success: false, message: 'Data isian kosong — minimal 1 entri diperlukan.' };
 
-    const namaUtama = entries[0].employee.nama_lengkap || entries[0].employee.nama || 'pegawai';
+    const ctx0 = entries[0].dataContext || {};
+    const emp0 = entries[0].employee || {};
+    const fd0 = (payload.entries && payload.entries[0] && (payload.entries[0].formData || payload.entries[0].dataCtx)) || payload.formData || payload.dataCtx || {};
+    const namaUtama = ctx0.nama_lengkap || fd0.nama_lengkap || emp0.nama_lengkap || ctx0.nama || fd0.nama || emp0.nama || 'pegawai';
+    const nipUtama = ctx0.nip || fd0.nip || emp0.nip || '';
     const fileNameBase = entries.length > 1
       ? `${namaUtama}-dkk-${entries.length}data-${payload.subLayanan}`
-      : `${namaUtama}-${entries[0].employee.nip}-${payload.subLayanan}`;
+      : `${namaUtama}-${nipUtama}-${payload.subLayanan}`;
     const fileName = sanitizeFileName_(fileNameBase);
 
     const docCopy = renderMultiEntryDocument_(payload.templateFileId, entries, fileName);
