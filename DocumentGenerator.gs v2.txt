@@ -427,7 +427,7 @@ function generateDocument(sessionToken, payload) {
 
     const userRole = (employeeSession && employeeSession.role) || getUserRole_(employeeSession.nip);
     const subLayananStr = String(payload.subLayanan || '').trim();
-    const isBuatSk = (layanan === 'Buat SK dan Surat' || ['SK CPTU', 'SK PTU 100%', 'SPMT', 'SPMT CPTU'].indexOf(subLayananStr) !== -1);
+    const isBuatSk = (layanan === 'Buat SK dan Surat' || ['SK CPTU', 'SK PTU 100%', 'SPMT', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU'].indexOf(subLayananStr) !== -1 || subLayananStr.toLowerCase().indexOf('cptu') !== -1 || subLayananStr.toLowerCase().indexOf('bayangan') !== -1 || subLayananStr.toLowerCase().indexOf('spmt') !== -1);
     const forceGdocs = isBuatSk || payload.tipeTemplate === 'gdocs' || payload.tipe === 'gdocs' || payload.outputType === 'gdocs';
     const isNormalOrUser = !forceGdocs && (userRole === 'normal' || userRole === 'user');
 

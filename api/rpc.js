@@ -4036,17 +4036,36 @@ const methods = {
   async addJenisSurat(args) {
     const [token, payload] = extractArgs(args);
     requireRole(token, ['admin', 'super_admin']);
-    const { nama, tampil_di_usulan_user } = payload || {};
+    const { nama, tampil_di_usulan_user, tipe_format } = payload || {};
     if (!nama || !String(nama).trim()) throw new Error('Nama jenis surat wajib diisi.');
+    const format = ['normal', 'kolektif', 'banyak_lampiran'].includes(tipe_format) ? tipe_format : 'normal';
     const db = getDb();
     const { data: existing } = await db.from('jenis_surat').select('id').eq('nama', String(nama).trim()).maybeSingle();
     if (existing) throw new Error(`Jenis surat "${nama}" sudah ada.`);
-    const { error } = await db.from('jenis_surat').insert({
-      nama: String(nama).trim(),
-      layanan: 'Buat SK dan Surat',
-      tampil_di_usulan_user: tampil_di_usulan_user === true || tampil_di_usulan_user === 'true'
-    });
-    if (error) throw error;
+
+    let insertErr = null;
+    try {
+      const { error } = await db.from('jenis_surat').insert({
+        nama: String(nama).trim(),
+        layanan: 'Buat SK dan Surat',
+        tampil_di_usulan_user: tampil_di_usulan_user === true || tampil_di_usulan_user === 'true',
+        tipe_format: format
+      });
+      insertErr = error;
+    } catch (e) {
+      insertErr = e;
+    }
+
+    if (insertErr) {
+      console.warn('[addJenisSurat] Fallback insert tanpa kolom tipe_format:', insertErr.message || insertErr);
+      const { error: fallbackErr } = await db.from('jenis_surat').insert({
+        nama: String(nama).trim(),
+        layanan: 'Buat SK dan Surat',
+        tampil_di_usulan_user: tampil_di_usulan_user === true || tampil_di_usulan_user === 'true'
+      });
+      if (fallbackErr) throw fallbackErr;
+    }
+
     return { success: true, message: `Jenis surat "${nama}" berhasil ditambahkan.` };
   },
 
@@ -4331,7 +4350,8 @@ const methods = {
       } catch (_) {}
     }
 
-    if (['SK CPTU', 'SK PTU 100%', 'SPMT CPTU'].includes(jenis_sk) && rawCtx.golongan && rawCtx.masa_kerja_gol !== undefined) {
+    const isGajiCptuSupported = ['SK CPTU', 'SK PTU 100%', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU'].includes(jenis_sk) || (jenis_sk && String(jenis_sk).includes('CPTU'));
+    if (isGajiCptuSupported && rawCtx.golongan && rawCtx.masa_kerja_gol !== undefined) {
       const gajiPokok = hitungGajiPokokNonAsn(rawCtx.golongan, Number(rawCtx.masa_kerja_gol || 0));
       if (gajiPokok > 0) rawCtx.gaji_pokok = formatRupiah(gajiPokok);
     }

@@ -15668,8 +15668,22 @@ const BUAT_SK = {
   loopColumns: {},        // { 'pejabat_dilantik': ['nama_lengkap','nip','jabatan',...], ... }
   jenisTutamList: [],     // daftar jenis tutam dari DB
   jenisTutamStruktural: null, // sub-jenis yang dipilih untuk SK Tutam Struktural
-  templatesList: null
+  templatesList: null,
+  jenisSuratMap: {}       // map nama -> { id, nama, tipe_format, ... }
 };
+
+/** Ambil tipe format / alur jenis surat ('normal' | 'kolektif' | 'banyak_lampiran') */
+function buatSkGetFormat(jenis) {
+  if (!jenis) return 'normal';
+  const info = (BUAT_SK.jenisSuratMap && BUAT_SK.jenisSuratMap[jenis]);
+  if (info && info.tipe_format) return info.tipe_format;
+  // Fallbacks default untuk jenis SK bawaan legacy
+  const KOLEKTIF_DEFAULTS = ['SK CPTU', 'SPMT', 'SPMT CPTU', 'SK PTU 100%', 'SK CPTU Bayangan', 'SK Bayangan CPTU'];
+  if (KOLEKTIF_DEFAULTS.includes(jenis) || jenis.includes('Bayangan') || jenis.includes('CPTU')) return 'kolektif';
+  const BANYAK_LAMPIRAN_DEFAULTS = ['SK Tutam Kadep & Kaprodi', 'SK Tutam Struktural', 'SK Tutam Dekan Wadek'];
+  if (BANYAK_LAMPIRAN_DEFAULTS.includes(jenis)) return 'banyak_lampiran';
+  return 'normal';
+}
 
 // Pre-load promise — diset saat user masuk view agar templates sudah siap
 let _buatSkInitPromise = null;
@@ -15733,6 +15747,8 @@ async function buatSkLoadJenisSuratAdmin() {
   try {
     const res = await rpc('getJenisSuratList', [SESSION.token]);
     const list = (res && res.data) ? res.data : [];
+    BUAT_SK.jenisSuratMap = {};
+    list.forEach(j => { BUAT_SK.jenisSuratMap[j.nama] = j; });
     const curVal = sel.value;
     sel.innerHTML = '<option value="">-- Pilih Jenis SK / Surat --</option>' +
       list.map(j => {
@@ -15796,6 +15812,9 @@ async function kelolaJenisLoad() {
   try {
     const res = await rpc('getJenisSuratList', [SESSION.token]);
     const list = (res && res.data) ? res.data : [];
+    BUAT_SK.jenisSuratMap = {};
+    list.forEach(j => { BUAT_SK.jenisSuratMap[j.nama] = j; });
+
     if (list.length === 0) {
       container.innerHTML = '<div class="ce-dashboard-card cdc-empty" style="padding:18px;text-align:center;color:var(--text-muted);">Belum ada jenis surat. Tambahkan di atas.</div>';
       return;
@@ -15804,10 +15823,22 @@ async function kelolaJenisLoad() {
       const isOn = j.tampil_di_usulan_user;
       const trackBg = isOn ? 'var(--primary,#1d4ed8)' : '#cbd5e1';
       const thumbX  = isOn ? 'translateX(20px)' : 'translateX(0)';
+
+      const fmt = buatSkGetFormat(j.nama);
+      let formatBadge = `<span style="display:inline-flex;align-items:center;margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:var(--surface-alt,#f1f5f9);color:var(--text-muted,#64748b);border:1px solid var(--border,#cbd5e1);">📄 Normal</span>`;
+      if (fmt === 'kolektif') {
+        formatBadge = `<span style="display:inline-flex;align-items:center;margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;">⚡ Kolektif</span>`;
+      } else if (fmt === 'banyak_lampiran') {
+        formatBadge = `<span style="display:inline-flex;align-items:center;margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:#fef3c7;color:#b45309;border:1px solid #fde68a;">📋 Banyak Lampiran</span>`;
+      }
+
       return `
       <div id="kelolaJenisRow_${j.id}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;transition:box-shadow 0.2s;">
         <div style="flex:1;min-width:0;">
-          <div style="font-weight:600;font-size:13.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(j.nama)}</div>
+          <div style="font-weight:600;font-size:13.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;">
+            <span style="overflow:hidden;text-overflow:ellipsis;">${escHtml(j.nama)}</span>
+            ${formatBadge}
+          </div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${j.dibuat_pada ? '📅 ' + new Date(j.dibuat_pada).toLocaleDateString('id-ID') : ''}</div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-shrink:0;" title="Aktifkan agar jenis ini muncul di menu Usul SK akun user">
@@ -15877,6 +15908,8 @@ function updateTemplateSubMenuOptions(layananKey) {
 function bukaModalTambahJenisSurat() {
   const input = document.getElementById('modalTambahJenis_nama');
   if (input) input.value = '';
+  const rNormal = document.querySelector('input[name="modalTambahJenis_tipeFormat"][value="normal"]');
+  if (rNormal) rNormal.checked = true;
   const toggle = document.getElementById('modalTambahJenis_toggleUser');
   if (toggle) toggle.checked = true;
   const err = document.getElementById('modalTambahJenis_error');
@@ -15892,6 +15925,7 @@ function tutupModalTambahJenisSurat() {
 
 async function simpanJenisSuratModal() {
   const nama = (document.getElementById('modalTambahJenis_nama')?.value || '').trim();
+  const tipe_format = document.querySelector('input[name="modalTambahJenis_tipeFormat"]:checked')?.value || 'normal';
   const tampil = document.getElementById('modalTambahJenis_toggleUser')?.checked || false;
   const errEl = document.getElementById('modalTambahJenis_error');
   const btn = document.getElementById('btnSimpanJenisSuratModal');
@@ -15905,7 +15939,7 @@ async function simpanJenisSuratModal() {
   if (errEl) errEl.style.display = 'none';
 
   try {
-    const res = await rpc('addJenisSurat', [SESSION.token, { nama, tampil_di_usulan_user: tampil }]);
+    const res = await rpc('addJenisSurat', [SESSION.token, { nama, tampil_di_usulan_user: tampil, tipe_format }]);
     if (btn) btn.disabled = false;
     if (res.success) {
       showToast('success', res.message || 'Jenis surat berhasil ditambahkan.');
@@ -16291,14 +16325,15 @@ async function buatSkJenisChange() {
     const elTipeWrap = document.getElementById('buatSk_tipeWrap');
     if (elTipeWrap) elTipeWrap.style.display = '';
 
-    // Kategori SK berdasarkan spec
+    // Kategori SK berdasarkan spec & konfigurasi format
+    const isBanyakLampiran = (buatSkGetFormat(jenis) === 'banyak_lampiran');
     const KAT1 = ['SK Tutam Kadep & Kaprodi','SK Tutam Struktural','SK Tutam Dekan Wadek']; // search per baris tabel
     const PERLU_UNIT  = ['SK Tutam Kadep & Kaprodi','SK Tutam Sekprodi','SK Tutam Dekan Wadek'];
     const PERLU_LOOP  = ['SK Tutam Kadep & Kaprodi','SK Tutam Struktural','SK Tutam Dekan Wadek'];
     const NEED_SEARCH = ['SK PTU 100%', 'Surat PLT', 'Surat PLH', 'SK Tutam Sekprodi']; // Kat1 TIDAK di sini
 
-    // Preload jenisTutamList untuk Kat1 dan Struktural
-    if ((KAT1.includes(jenis) || jenis === 'SK Tutam Sekprodi') && (!BUAT_SK.jenisTutamList || BUAT_SK.jenisTutamList.length === 0)) {
+    // Preload jenisTutamList untuk Kat1, Struktural, dan jenis banyak lampiran
+    if ((KAT1.includes(jenis) || jenis === 'SK Tutam Sekprodi' || isBanyakLampiran) && (!BUAT_SK.jenisTutamList || BUAT_SK.jenisTutamList.length === 0)) {
       try {
         const jt = await rpc('getJenisTutam', [SESSION.token]);
         BUAT_SK.jenisTutamList = (jt && Array.isArray(jt.data)) ? jt.data : [];
@@ -16318,7 +16353,7 @@ async function buatSkJenisChange() {
       if (el) el.style.display = '';
       return; // lanjut di buatSkUnitChange setelah unit dipilih
     }
-    if (!KAT1.includes(jenis) || NEED_SEARCH.includes(jenis)) {
+    if (!isBanyakLampiran || NEED_SEARCH.includes(jenis)) {
       const el = document.getElementById('buatSk_searchEmpWrap');
       if (el) el.style.display = '';
     }
@@ -16388,7 +16423,7 @@ async function buatSkJenisChange() {
     // Muat placeholder dari template → render sebagai kolom input dinamis
     await buatSkLoadPlaceholders();
 
-    if (PERLU_LOOP.includes(jenis)) {
+    if (PERLU_LOOP.includes(jenis) || isBanyakLampiran) {
       const wrapLoop = document.getElementById('buatSk_loopWrap');
       if (wrapLoop) wrapLoop.style.display = '';
     }
@@ -16577,7 +16612,8 @@ async function buatSkUnitChange() {
   await buatSkLoadPlaceholders();
 
   const PERLU_LOOP = ['SK Tutam Kadep & Kaprodi','SK Tutam Struktural','SK Tutam Dekan Wadek'];
-  if (PERLU_LOOP.includes(BUAT_SK.jenisSk)) document.getElementById('buatSk_loopWrap').style.display = '';
+  const isBanyakLampiran = (buatSkGetFormat(BUAT_SK.jenisSk) === 'banyak_lampiran') || PERLU_LOOP.includes(BUAT_SK.jenisSk);
+  if (isBanyakLampiran) document.getElementById('buatSk_loopWrap').style.display = '';
 }
 
 async function buatSkLoadPlaceholders() {
@@ -16625,7 +16661,8 @@ async function buatSkLoadPlaceholders() {
     const empKeys = ['nama_lengkap', 'nama', 'nip', 'nama_pegawai', 'nip_pegawai', 'pegawai', 'pangkat', 'jabatan'];
     const hasEmpField = placeholders.some(p => empKeys.includes(String(p).toLowerCase().trim()));
     const KAT1 = ['SK Tutam Kadep & Kaprodi','SK Tutam Struktural','SK Tutam Dekan Wadek'];
-    if (hasEmpField || !KAT1.includes(BUAT_SK.jenisSk)) {
+    const isLampiran = (buatSkGetFormat(BUAT_SK.jenisSk) === 'banyak_lampiran');
+    if (hasEmpField || (!KAT1.includes(BUAT_SK.jenisSk) && !isLampiran)) {
       searchWrap.style.display = '';
     }
   }
@@ -16637,8 +16674,8 @@ async function buatSkLoadPlaceholders() {
   if (wrapAct) wrapAct.style.display = 'flex';
   buatSkHitungGajiPokok();
 
-  // Khusus SK CPTU, SPMT, SPMT CPTU, & SK PTU 100%: Tampilkan opsi Batch / Kolektif
-  const isCptuBatchSupported = ['SK CPTU', 'SPMT', 'SPMT CPTU', 'SK PTU 100%'].includes(BUAT_SK.jenisSk);
+  // Khusus jenis berformat Kolektif (seperti SK CPTU, SPMT, SPMT CPTU, SK PTU 100%, dll.): Tampilkan opsi Batch / Kolektif
+  const isCptuBatchSupported = (buatSkGetFormat(BUAT_SK.jenisSk) === 'kolektif');
   const cptuCard = document.getElementById('buatSk_cptuBatchCard');
   if (cptuCard) {
     if (isCptuBatchSupported) {
@@ -16667,7 +16704,7 @@ function buatSkRenderDynamicFields(placeholders) {
   const AUTO_RESOLVE = new Set(['pimpinan','nama_pimpinan','nama_jabatan','today']);
   const PERLU_LOOP = ['SK Tutam Kadep & Kaprodi','SK Tutam Struktural','SK Tutam Dekan Wadek'];
   const PERLU_UNIT = ['SK Tutam Kadep & Kaprodi','SK Tutam Sekprodi','SK Tutam Dekan Wadek','SK Tutam Struktural'];
-  const hasLoop = PERLU_LOOP.includes(BUAT_SK.jenisSk);
+  const hasLoop = (buatSkGetFormat(BUAT_SK.jenisSk) === 'banyak_lampiran') || PERLU_LOOP.includes(BUAT_SK.jenisSk);
   const hasUnitSelect = PERLU_UNIT.includes(BUAT_SK.jenisSk) && !!BUAT_SK.unitEsIi;
 
   // Kunci loop tabel (array mustache section) — tidak dirender sebagai form tunggal
@@ -16873,7 +16910,7 @@ function buatSkHitungGajiPokok() {
   const fieldPangkat = document.getElementById('bsk_field_pangkat') || document.getElementById('bsk_field_nama_pangkat');
   const fieldTotalGaji = document.getElementById('bsk_field_total_gaji');
 
-  const isCptu = ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk);
+  const isCptu = ['SK CPTU', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU'].includes(BUAT_SK.jenisSk) || (BUAT_SK.jenisSk && BUAT_SK.jenisSk.includes('CPTU'));
 
   if (fieldPangkat && gol) {
     const pangkatResolved = getPangkatForGolongan(gol, isCptu);
@@ -16942,13 +16979,15 @@ function buatSkAutoFillFormFromEmp(emp) {
   const empJab  = emp.jabatan || '';
   const empUnit = emp.unit_es_ii || emp.unit || '';
 
+  const isEmpCptu = ['SK CPTU', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU'].includes(BUAT_SK.jenisSk) || (BUAT_SK.jenisSk && BUAT_SK.jenisSk.includes('CPTU'));
+
   const mapVal = {
     nip:          empNip,
     nama_lengkap: empNama,
     nama:         empNama,
     jabatan:      empJab,
     golongan:     empGol,
-    pangkat:      emp.pangkat || (typeof getPangkatForGolongan === 'function' ? getPangkatForGolongan(empGol, ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk)) : '') || '',
+    pangkat:      emp.pangkat || (typeof getPangkatForGolongan === 'function' ? getPangkatForGolongan(empGol, isEmpCptu) : '') || '',
     unit_es_ii:   empUnit,
     tmp_lhr:      emp.tmp_lhr || emp.tempat_lahir || '',
     tgl_lhr:      emp.tgl_lhr || emp.tanggal_lahir || '',
@@ -17906,13 +17945,13 @@ function cptuProcessParsedRows(rawRows) {
     });
 
     // Auto resolve pangkat jika kosong dan golongan terisi
+    const isCptu = ['SK CPTU', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU'].includes(BUAT_SK.jenisSk) || (BUAT_SK.jenisSk && BUAT_SK.jenisSk.includes('CPTU'));
     if (r.golongan && !r.pangkat && typeof getPangkatForGolongan === 'function') {
-      const isCptu = ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk);
       r.pangkat = getPangkatForGolongan(r.golongan, isCptu) || '';
     }
 
     // Hitung otomatis total_gaji jika CPTU (80% x gaji_pokok)
-    if (['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk)) {
+    if (isCptu) {
       const numGaji = parseInt(String(r.gaji_pokok || '').replace(/[^0-9]/g, ''), 10);
       if (!isNaN(numGaji) && numGaji > 0) {
         const g80 = Math.round(numGaji * 0.8);
@@ -18085,7 +18124,7 @@ async function cptuSelectEmpForTableRow(rowIdx, nip) {
   const r = window.CPTU_BATCH_ROWS[rowIdx];
   const empNama = String(emp.nama_lengkap || emp.nama || '').trim();
   const empGol = emp.golongan || emp.gol || '';
-  const isCptu = ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk);
+  const isCptu = ['SK CPTU', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU'].includes(BUAT_SK.jenisSk) || (BUAT_SK.jenisSk && BUAT_SK.jenisSk.includes('CPTU'));
   const empPangkat = emp.pangkat || (typeof getPangkatForGolongan === 'function' ? getPangkatForGolongan(empGol, isCptu) : '');
   const empUnit = emp.unit_es_ii || emp.unit || BUAT_SK.unitEsIi || '';
   const empJabatan = emp.jabatan || '';
@@ -18125,7 +18164,8 @@ function cptuUpdateBatchCell(rowIdx, colKey, val) {
   window.CPTU_BATCH_ROWS[rowIdx][colKey] = val;
 
   // Khusus gaji pokok pada CPTU: auto update total_gaji (80%)
-  if (colKey === 'gaji_pokok' && ['SK CPTU', 'SPMT CPTU'].includes(BUAT_SK.jenisSk)) {
+  const isCptu = ['SK CPTU', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU'].includes(BUAT_SK.jenisSk) || (BUAT_SK.jenisSk && BUAT_SK.jenisSk.includes('CPTU'));
+  if (colKey === 'gaji_pokok' && isCptu) {
     const numGaji = parseInt(String(val).replace(/[^0-9]/g, ''), 10);
     if (!isNaN(numGaji) && numGaji > 0) {
       window.CPTU_BATCH_ROWS[rowIdx].total_gaji = 'Rp ' + Math.round(numGaji * 0.8).toLocaleString('id-ID');
@@ -18183,7 +18223,8 @@ async function cptuExecuteBatchGenerate() {
   const jenisSk = BUAT_SK.jenisSk || 'SK CPTU';
   const isSpmt = (jenisSk === 'SPMT CPTU' || jenisSk === 'SPMT');
   const isPtu = (jenisSk === 'SK PTU 100%');
-  const prefix = isPtu ? 'SK_PTU_100' : (isSpmt ? (jenisSk === 'SPMT' ? 'SPMT' : 'SPMT_CPTU') : 'SK_CPTU');
+  const isBayangan = (jenisSk.includes('Bayangan') || jenisSk === 'SK CPTU Bayangan' || jenisSk === 'SK Bayangan CPTU');
+  const prefix = isBayangan ? 'SK_CPTU_BAYANGAN' : (isPtu ? 'SK_PTU_100' : (isSpmt ? (jenisSk === 'SPMT' ? 'SPMT' : 'SPMT_CPTU') : (jenisSk === 'SK CPTU' ? 'SK_CPTU' : jenisSk.toUpperCase().replace(/[^A-Z0-9_]/g, '_'))));
   const templateId = BUAT_SK.templateId || ('default_' + jenisSk.toLowerCase().replace(/[^a-z0-9]/g, '_'));
   const tipeTemplate = BUAT_SK.tipeTemplate || document.getElementById('buatSk_tipeTemplate')?.value || 'docx';
 

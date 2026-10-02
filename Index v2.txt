@@ -2513,7 +2513,7 @@
   </div>
   <!-- ======================= MODAL TAMBAH JENIS SK / SURAT ======================= -->
   <div class="modal-overlay" id="modalTambahJenisSurat" style="display:none;">
-    <div class="modal-box" style="max-width:500px; width:92%;">
+    <div class="modal-box" style="max-width:540px; width:92%;">
       <div class="modal-header">
         <strong style="font-size:15.5px; color:var(--text);">➕ Tambah Jenis SK / Surat Baru</strong>
         <button class="btn btn-secondary" onclick="tutupModalTambahJenisSurat()" style="padding:4px 10px; font-size:13px;">✕</button>
@@ -2523,6 +2523,57 @@
           <label class="kp-label" style="font-weight:600; margin-bottom:6px; display:block;">Nama Jenis SK / Surat <span style="color:#ef4444;">*</span></label>
           <input type="text" id="modalTambahJenis_nama" class="field-input" placeholder="Contoh: Surat Tugas, SK Panitia" style="width:100%; box-sizing:border-box; padding:10px 14px;" />
         </div>
+
+        <!-- Pilihan Format / Alur Pembuatan SK -->
+        <div class="stack-field" style="margin-bottom:18px;">
+          <label class="kp-label" style="font-weight:600; margin-bottom:8px; display:block; font-size:13.5px;">
+            Pilihan Alur / Format Pembuatan SK <span style="color:#ef4444;">*</span>
+          </label>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <!-- Option 1: Normal -->
+            <label class="format-choice-card" style="display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1.5px solid var(--border,#cbd5e1); border-radius:10px; cursor:pointer; background:var(--surface,#fff); transition:all 0.2s ease;">
+              <input type="radio" name="modalTambahJenis_tipeFormat" value="normal" checked style="margin-top:3px; accent-color:var(--primary,#1d4ed8); width:17px; height:17px;" />
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <strong style="font-size:13.5px; color:var(--text,#0f172a);">📄 Normal (Dokumen Tunggal)</strong>
+                  <span style="font-size:10.5px; background:var(--surface-alt,#f1f5f9); color:var(--text-muted,#64748b); padding:2px 7px; border-radius:12px; font-weight:600;">Standar</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted,#64748b); margin-top:3px; line-height:1.4;">
+                  Satu berkas dokumen per pembuatan dengan pengisian formulir standar dan pencarian data pegawai.
+                </div>
+              </div>
+            </label>
+
+            <!-- Option 2: Kolektif -->
+            <label class="format-choice-card" style="display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1.5px solid var(--border,#cbd5e1); border-radius:10px; cursor:pointer; background:var(--surface,#fff); transition:all 0.2s ease;">
+              <input type="radio" name="modalTambahJenis_tipeFormat" value="kolektif" style="margin-top:3px; accent-color:var(--primary,#1d4ed8); width:17px; height:17px;" />
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <strong style="font-size:13.5px; color:var(--text,#0f172a);">⚡ Kolektif (Multi-Pegawai / Batch)</strong>
+                  <span style="font-size:10.5px; background:#e0f2fe; color:#0369a1; padding:2px 7px; border-radius:12px; font-weight:600;">Seperti SK PTU 100% / SK CPTU</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted,#64748b); margin-top:3px; line-height:1.4;">
+                  Mendukung input satu per satu atau banyak data sekaligus via Import Excel, Google Spreadsheet, dan tambah baris tabel.
+                </div>
+              </div>
+            </label>
+
+            <!-- Option 3: Banyak Lampiran -->
+            <label class="format-choice-card" style="display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1.5px solid var(--border,#cbd5e1); border-radius:10px; cursor:pointer; background:var(--surface,#fff); transition:all 0.2s ease;">
+              <input type="radio" name="modalTambahJenis_tipeFormat" value="banyak_lampiran" style="margin-top:3px; accent-color:var(--primary,#1d4ed8); width:17px; height:17px;" />
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <strong style="font-size:13.5px; color:var(--text,#0f172a);">📋 Banyak Lampiran (Tabel Pejabat Lampiran)</strong>
+                  <span style="font-size:10.5px; background:#fef3c7; color:#b45309; padding:2px 7px; border-radius:12px; font-weight:600;">Seperti SK Tutam</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted,#64748b); margin-top:3px; line-height:1.4;">
+                  Satu SK dengan lampiran tabel dinamis untuk daftar pejabat yang dilantik dan diberhentikan.
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <div style="background:var(--surface-alt); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:20px;">
           <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
             <input type="checkbox" id="modalTambahJenis_toggleUser" style="width:18px; height:18px; margin-top:2px; cursor:pointer; accent-color:var(--primary);" checked />
