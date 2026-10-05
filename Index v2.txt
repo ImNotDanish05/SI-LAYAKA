@@ -42,14 +42,14 @@
   <div id="loginScreen">
     <div class="login-topbar">
       <div class="brand-title" style="display:flex; align-items:center; gap:8px;">
-        <img src="logo-silayaka.png" alt="SILAYAKA Logo" style="height:26px; width:auto; object-fit:contain;" />
+        <img id="loginBrandLogo" src="logo-silayaka.png" alt="SILAYAKA Logo" style="height:26px; width:auto; object-fit:contain;" />
         <span>SI-LAYAKA Personnel</span>
       </div>
       <div class="login-topbar-actions">
-        <button type="button" class="topbar-btn" title="Toggle Theme" onclick="document.getElementById('themeToggleBtn').click();">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <button type="button" class="topbar-btn theme-toggle-btn" id="loginThemeToggleBtn" title="Ganti Tema (Light / Godzilla Dark)" aria-label="Ganti Tema (Light / Godzilla Dark)">
+          <span id="loginThemeBtnIcon" class="theme-btn-icon" style="font-size:18px;">🌙</span>
         </button>
-        <button type="button" class="topbar-btn" title="Bantuan" onclick="alert('Jika Anda mengalami kendala login, silakan hubungi Administrator DOSDM Universitas Diponegoro.');">
+        <button type="button" class="topbar-btn" title="Bantuan" aria-label="Bantuan" onclick="alert('Jika Anda mengalami kendala login, silakan hubungi Administrator DOSDM Universitas Diponegoro.');">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
         </button>
       </div>
@@ -172,7 +172,7 @@
       <!-- SIDEBAR -->
       <div class="sidebar">
         <div class="sidebar-brand">
-          <img src="logo-silayaka.png" alt="SILAYAKA Logo" class="sidebar-brand-logo" />
+          <img id="sidebarBrandLogo" src="logo-silayaka.png" alt="SILAYAKA Logo" class="sidebar-brand-logo" />
           <span>SISTEM LAYANAN<br>ADMINISTRASI KEPEGAWAIAN</span>
         </div>
 
@@ -217,13 +217,19 @@
       <div class="main-content">
         <div class="topbar">
           <div style="display:flex; align-items:center; gap:12px;">
-            <button type="button" class="mobile-only btn btn-secondary" onclick="const sb=document.querySelector('.sidebar'); if(sb) sb.classList.toggle('mobile-open');" style="padding:6px 12px; font-size:16px; border-radius:6px; font-weight:bold;">
+            <button type="button" class="mobile-only btn btn-secondary" onclick="const sb=document.querySelector('.sidebar'); if(sb) sb.classList.toggle('mobile-open');" style="padding:6px 12px; font-size:16px; border-radius:6px; font-weight:bold;" aria-label="Buka Menu Navigasi">
               ☰
             </button>
             <div>
               <h2 id="topbarTitle">Kenaikan Pangkat</h2>
               <div class="breadcrumb">Sistem Layanan Administrasi Kepegawaian</div>
             </div>
+          </div>
+          <div class="topbar-actions" style="display:flex; align-items:center; gap:10px;">
+            <button type="button" class="topbar-theme-btn" id="appThemeToggleBtn" title="Ganti Tema (Light / Godzilla Dark)" aria-label="Ganti Tema (Light / Godzilla Dark)">
+              <span id="appThemeBtnIcon" class="theme-btn-icon">🌙</span>
+              <span id="appThemeBtnLabel" class="theme-btn-label">Godzilla Dark</span>
+            </button>
           </div>
         </div>
 
@@ -253,7 +259,7 @@
                   </div>
                   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <span class="ce-dashboard-target" id="ceDashboardTarget"></span>
-                    <button type="button" class="btn btn-outline kp-small-btn" onclick="loadPromosiDashboard(currentSelectedTmt)">🔄 Segarkan Dashboard</button>
+                    <button type="button" class="btn btn-outline kp-small-btn" onclick="loadPromosiDashboard(currentSelectedTmt)">🔄 Refresh</button>
                     <button type="button" class="btn btn-outline kp-small-btn" onclick="bukaModalSyaratKp()" style="font-weight:600; border-color:#3b82f6; color:#2563eb;">📋 Syarat-Syarat Kenaikan Pangkat</button>
                     <button type="button" class="btn btn-primary kp-small-btn" id="ceDashboardAjukanUsulanBtn" style="display:none;">📨 Ajukan Usulan</button>
                   </div>
@@ -442,7 +448,7 @@
             <div class="tab-panel" data-tab-group-panel="kp" id="tab-statusUsulan">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
                 <div class="helper-text" style="margin:0;">Daftar pegawai yang pernah Anda ajukan untuk Kenaikan Pangkat, beserta status terkini.</div>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadStatusUsulanSaya()">🔄 Segarkan Daftar</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadStatusUsulanSaya()">🔄 Refresh</button>
               </div>
               <div id="statusUsulanList" class="ce-dashboard-list"></div>
             </div>
@@ -552,7 +558,7 @@
                       <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Anda dapat mencari pegawai dan langsung mengubah statusnya di bawah ini.</div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
-                      <button type="button" class="btn btn-outline kp-small-btn" onclick="refreshStatusDetailModal()">🔄 Segarkan Daftar</button>
+                      <button type="button" class="btn btn-outline kp-small-btn" onclick="refreshStatusDetailModal()">🔄 Refresh</button>
                       <button type="button" class="btn btn-outline kp-small-btn" onclick="closeStatusDetailModal()">✕ Tutup</button>
                     </div>
                   </div>
@@ -575,6 +581,7 @@
                           <th>TMT</th>
                           <th>Status Saat Ini</th>
                           <th>Ubah Status</th>
+                          <th style="width:60px; text-align:center;">Aksi</th>
                         </tr>
                       </thead>
                       <tbody id="umModalTbody"></tbody>
@@ -857,7 +864,7 @@
               <div id="skKp_usulanWrap" class="stack-field" style="margin-bottom:16px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
                   <label class="kp-label" style="margin:0;">Pilih Pegawai dari Daftar Siap SK</label>
-                  <button type="button" class="btn btn-outline kp-small-btn" onclick="loadSkKpUsulanList()">🔄 Segarkan Daftar</button>
+                  <button type="button" class="btn btn-outline kp-small-btn" onclick="loadSkKpUsulanList()">🔄 Refresh</button>
                 </div>
                 <select id="skKp_usulanSelect" class="field-input" onchange="onSelectSkKpUsulan()">
                   <option value="">Memuat daftar pegawai siap SK...</option>
@@ -918,7 +925,7 @@
             <div class="tab-panel" data-tab-group-panel="kp" id="tab-approvalSk">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
                 <div class="helper-text" style="margin:0;">Daftar SK yang sedang menunggu persetujuan Anda sesuai dengan jenjang jabatan approval Anda. Anda wajib mencentang checkbox untuk menyetujui.</div>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadApprovalSkQueue()">🔄 Segarkan Daftar</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadApprovalSkQueue()">🔄 Refresh</button>
               </div>
               <div id="approvalSkList" class="ce-dashboard-list"></div>
             </div>
@@ -927,7 +934,7 @@
             <div class="tab-panel" data-tab-group-panel="kp" id="tab-uploadSk">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
                 <div class="helper-text" style="margin:0;">Unggah PDF SK yang telah dicap basah dan ditandatangani oleh pejabat berwenang untuk menyelesaikan alur SK.</div>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUploadSkList()">🔄 Segarkan Daftar</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUploadSkList()">🔄 Refresh</button>
               </div>
               <div id="uploadSkList" class="ce-dashboard-list"></div>
             </div>
@@ -954,7 +961,7 @@
                     <span class="ce-dashboard-title">🧓 Pegawai Akan Pensiun</span>
                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                       <span class="ce-dashboard-target" id="pensiunDashboardAmbang"></span>
-                      <button type="button" class="btn btn-outline kp-small-btn" onclick="loadPensiunDashboard()">🔄 Segarkan Daftar</button>
+                      <button type="button" class="btn btn-outline kp-small-btn" onclick="loadPensiunDashboard()">🔄 Refresh</button>
                     </div>
                   </div>
                   <div id="pensiunDashboardLevel1" class="ce-dashboard-grid"></div>
@@ -1139,7 +1146,7 @@
             <div class="tab-panel" data-tab-group-panel="pensiun" id="tab-statusUsulanPensiun">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
                 <div class="helper-text" style="margin:0;">Daftar pegawai yang pernah Anda ajukan untuk Pensiun, beserta status terkini.</div>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadStatusUsulanPensiunSaya()">🔄 Segarkan Daftar</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadStatusUsulanPensiunSaya()">🔄 Refresh</button>
               </div>
               <div id="statusUsulanPensiunList" class="ce-dashboard-list"></div>
             </div>
@@ -1148,13 +1155,13 @@
             <div class="tab-panel" data-tab-group-panel="pensiun" id="tab-usulanMasukPensiun">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
                 <div class="helper-text" style="margin:0;">Usulan Pensiun yang diajukan User, dikelompokkan per Unit/Fakultas. Buat DPCP dan SUPER untuk memprosesnya.</div>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUsulanMasukPensiunDashboard()">🔄 Segarkan Usulan Masuk</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUsulanMasukPensiunDashboard()">🔄 Refresh</button>
               </div>
               <div id="usulanMasukPensiunLevel1" class="ce-dashboard-grid"></div>
               <div id="usulanMasukPensiunLevel2" style="display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
                   <button type="button" class="ce-dashboard-back" id="usulanMasukPensiunBackBtn">&larr; Kembali ke daftar unit</button>
-                  <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUsulanMasukPensiunDashboard()">🔄 Segarkan Daftar</button>
+                  <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUsulanMasukPensiunDashboard()">🔄 Refresh</button>
                 </div>
                 <div id="usulanMasukPensiunLevel2List" class="ce-dashboard-list"></div>
               </div>
@@ -1183,7 +1190,7 @@
               <div id="skNonAsn_usulanWrap" class="stack-field" style="margin-bottom:16px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
                   <label class="kp-label" style="margin:0;">Pilih Pegawai dari Daftar Usulan Non-ASN</label>
-                  <button type="button" class="btn btn-outline kp-small-btn" onclick="loadSkNonAsnUsulanList()">🔄 Segarkan Daftar</button>
+                  <button type="button" class="btn btn-outline kp-small-btn" onclick="loadSkNonAsnUsulanList()">🔄 Refresh</button>
                 </div>
                 <select id="skNonAsn_usulanSelect" class="field-input" onchange="onSelectSkNonAsnUsulan()"></select>
                 <div class="helper-text" id="skNonAsn_usulanInfo" style="display:none; margin-top:4px;"></div>
@@ -1246,7 +1253,7 @@
                 <div class="helper-text" style="margin:0;">
                   Unggah file PDF SK Pensiun yang telah ditandatangani dan dicap basah sesuai nama usulan pegawai. User yang mengusulkan dapat melihat dan mengunduh file SK tersebut secara langsung.
                 </div>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUploadSkPensiunList()">🔄 Segarkan Daftar</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUploadSkPensiunList()">🔄 Refresh</button>
               </div>
               <div id="uploadSkPensiunList" class="ce-dashboard-list"></div>
             </div>
@@ -1287,6 +1294,33 @@
                 (bukan satu per satu) — begitu diizinkan, semua pegawai berkategori itu langsung bisa membuat kontrak perpanjangan sendiri.
               </div>
               <div id="kontrakAksesKategoriList" class="ce-dashboard-list"></div>
+
+              <!-- SEKSI KHUSUS: PENGATURAN ALUR PENGUSULAN DOSEN (SEPERTI TENDIK) -->
+              <div style="margin-top:24px; padding-top:18px; border-top:1.5px dashed var(--border, #e2e8f0);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+                  <div>
+                    <div style="font-weight:700; font-size:15px; color:var(--text, #0f172a); display:flex; align-items:center; gap:8px;">
+                      <span>🎓 Alur Pengusulan Pegawai Dosen</span>
+                      <span id="badgeStatusAlurDosen" style="font-size:11px; font-weight:600; padding:2px 8px; border-radius:12px; background:#f1f5f9; color:#64748b;">Memuat...</span>
+                    </div>
+                    <div class="helper-text" style="margin-top:4px; max-width:650px;">
+                      Ubah alur pengusulan kontrak Dosen agar bertahap seperti Tenaga Kependidikan (Surat Lamaran, Bukti Hasil Kerja, TTD Digital &amp; Penilaian Atasan Langsung). Karena data Atasan Langsung dosen belum otomatis di sistem, pilihan Atasan Langsung dapat dicari secara manual oleh pengusul.
+                    </div>
+                  </div>
+                </div>
+                <div class="ce-dashboard-list" style="margin-top:10px;">
+                  <div class="ce-dashboard-list-item" style="cursor:default; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                      <div class="cdli-name" style="font-weight:600;">Aktifkan Alur Dosen Seperti Tendik</div>
+                      <div style="font-size:12px; color:var(--text-muted, #64748b);">Pengusulan Dosen melalui review bertahap Atasan Langsung (pencarian manual)</div>
+                    </div>
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; min-height:44px;">
+                      <input type="checkbox" id="toggleAlurDosenTendik" style="width:18px; height:18px; cursor:pointer;" />
+                      <span id="labelAlurDosenTendik" style="font-weight:600; font-size:13.5px; color:#888;">Tidak Aktif</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- STATE 2: pilih jenis kontrak spesifik -->
@@ -1295,10 +1329,10 @@
               <div id="kontrakSubMenuGrid" class="ce-dashboard-grid"></div>
             </div>
 
-            <!-- STATE 3: Usulan Baru / Perpanjangan -->
+            <!-- STATE 3: Usulan Baru / Perpanjangan / Buat Ulang -->
             <div id="kontrakPilihModeState" style="display:none;">
               <button type="button" class="ce-dashboard-back" id="kontrakBackToSubMenuBtn">&larr; Kembali</button>
-              <div class="ce-dashboard-grid">
+              <div class="ce-dashboard-grid" id="kontrakModeGrid">
                 <button type="button" class="ce-dashboard-card" onclick="pilihModeKontrak('baru')">
                   <div class="cdc-title">Usulan Baru</div>
                   <div class="cdc-sub">Pegawai/tenaga baru, belum ada di data utama</div>
@@ -1328,6 +1362,14 @@
                     <button type="button" id="kontrak_btnHapusDraftNip" class="btn btn-sm btn-outline-danger" style="display:none; padding:2px 8px; font-size:11px; border-radius:4px; border:1px solid #ef4444; color:#ef4444; background:transparent; cursor:pointer;" onclick="hapusNipFromFormUsulan()" title="Hapus NIP draft ini dan ulangi generate NIP">🗑️ Hapus NIP</button>
                   </div>
                   <input type="text" id="kontrak_nipManual" class="field-input" />
+                  <div id="kontrak_draftNipBuatUlangWrap" style="display:none; margin-top:6px;">
+                    <label style="font-size:11px; font-weight:700; color:var(--primary); margin-bottom:2px; display:flex; align-items:center; gap:4px;">
+                      <span>📌 NIP Draft CPTU Tersimpan (Belum Selesai):</span>
+                    </label>
+                    <select id="kontrak_draftNipBuatUlangSelect" class="field-input" style="font-size:12px; padding:6px 10px; font-weight:600; color:var(--primary); border:1.5px dashed var(--primary); background:var(--surface-alt, #f0f9ff);" onchange="onSelectDraftNipBuatUlang(this.value)">
+                      <option value="">-- Pilih NIP Draft CPTU untuk Digunakan --</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="stack-field autocomplete-wrap" style="position:relative;">
                   <label>Nama Lengkap</label>
@@ -1386,7 +1428,17 @@
                 <div id="kontrak_dynamicPlaceholdersWrap" class="grid-2 kp-grid grid-full" style="display:none; margin-top:10px;"></div>
               </div>
 
-              <div class="grid-2 kp-grid">
+              <!-- NIK KHUSUS CALON PEGAWAI TETAP UNDIP NON ASN (MENGGANTIKAN PERIODE KONTRAK) -->
+              <div class="stack-field grid-full" id="kontrak_nikWrap" style="display:none; margin-top:10px;">
+                <label style="font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                  <span>🪪 NIK (Nomor Induk Kependudukan)</span>
+                  <span style="font-size:11px; color:var(--danger); font-weight:600;">*Wajib diisi</span>
+                </label>
+                <input type="text" id="kontrak_nik" class="field-input" placeholder="Masukkan 16 digit NIK..." maxlength="20" />
+                <div class="helper-text">Nomor Induk Kependudukan sesuai KTP (menggantikan periode kontrak pada template CPTU).</div>
+              </div>
+
+              <div class="grid-2 kp-grid" id="kontrak_periodeKontrakWrap">
                 <div class="stack-field">
                   <label>TMT Kontrak (mulai)</label>
                   <div class="mk-input-pair">
@@ -1459,7 +1511,7 @@
                    <select id="kontrakReviewFilterTahun" class="field-input" style="width:auto; min-width:130px; padding:6px 12px; font-size:13px;" onchange="filterKontrakReviewUnits()">
                      <option value="Semua">Semua Tahun</option>
                    </select>
-                   <button type="button" class="btn btn-outline kp-small-btn" onclick="loadKontrakReviewUnits()">🔄 Segarkan Daftar</button>
+                   <button type="button" class="btn btn-outline kp-small-btn" onclick="loadKontrakReviewUnits()">🔄 Refresh</button>
                  </div>
                </div>
                <!-- KONTROL PENGATURAN BATAS WAKTU PENILAIAN EVALUASI ATASAN (Admin/Superadmin) -->
@@ -1484,7 +1536,7 @@
             <div id="kontrakReviewListState" style="display:none;">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                 <button type="button" class="ce-dashboard-back" onclick="backToKontrakReviewUnits()">&larr; Kembali ke Daftar Unit</button>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="refreshKontrakReviewCurrentUnit()">🔄 Segarkan Daftar</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="refreshKontrakReviewCurrentUnit()">🔄 Refresh</button>
               </div>
               <h3 id="kontrakReviewUnitTitle" style="margin-top:10px;">Usulan Unit</h3>
               <div id="kontrakReviewDaftarPegawai" class="ce-dashboard-list" style="margin-top:14px;"></div>
@@ -1492,7 +1544,7 @@
             <div id="kontrakReviewDetailState" style="display:none;">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                 <button type="button" class="ce-dashboard-back" onclick="backToKontrakReviewList()">&larr; Kembali ke Daftar Usulan</button>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="refreshKontrakReviewCurrentDetail()">🔄 Segarkan Data</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="refreshKontrakReviewCurrentDetail()">🔄 Refresh</button>
               </div>
               <h3 style="margin-top:10px;">Detail Usulan Kontrak</h3>
               <div id="kontrakReviewDetailContent" style="margin-top:14px;"></div>
@@ -1507,7 +1559,7 @@
                    <h3 style="margin:0; color:var(--text);">👔 Review Usulan Bawahan (Atasan Langsung)</h3>
                    <div class="helper-text">Daftar usulan perpanjangan kontrak pegawai non-dosen (Tendik) yang memerlukan penilaian evaluasi kinerja 7 kriteria dari Anda.</div>
                  </div>
-                 <button type="button" class="btn btn-outline kp-small-btn" onclick="loadKontrakAtasanReviewList()">🔄 Segarkan Daftar</button>
+                 <button type="button" class="btn btn-outline kp-small-btn" onclick="loadKontrakAtasanReviewList()">🔄 Refresh</button>
                </div>
                <div id="kontrakAtasanReviewList" class="ce-dashboard-list"></div>
              </div>
@@ -1520,7 +1572,7 @@
                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                  <h3 style="margin:0;">Status Usulan Kontrak Anda</h3>
                  <div style="display:flex; align-items:center; gap:8px;">
-                   <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUsulanKontrakSaya()">🔄 Segarkan Status</button>
+                   <button type="button" class="btn btn-outline kp-small-btn" onclick="loadUsulanKontrakSaya()">🔄 Refresh</button>
                    <button type="button" class="btn btn-outline kp-small-btn" onclick="openKontrakUserNewForm()">➕ Buat Pengajuan Usulan Baru</button>
                  </div>
                </div>
@@ -1539,12 +1591,7 @@
                     </div>
                     <div class="stack-field">
                       <label>NIP/NIK <span style="color:red;">*</span></label>
-                      <div style="display:flex; gap:8px;">
-                        <input type="text" id="kontrakUser_nip" class="field-input" style="flex:1;" required placeholder="Masukkan NIP/NIK" />
-                        <button type="button" class="btn btn-outline kp-small-btn" onclick="openAutoGenerateNipModal('kontrakUser_nip', 'kontrakUser_tglLahir', 'kontrakUser_jenisPegawai', 'kontrakUser_tglMasuk')" style="border-color:var(--primary); color:var(--primary); font-weight:700; white-space:nowrap;" title="Generate NIP Otomatis (18 Digit)">
-                          ⚡ Auto NIP
-                        </button>
-                      </div>
+                      <input type="text" id="kontrakUser_nip" class="field-input" required placeholder="Masukkan NIP/NIK" />
                     </div>
                     <div class="stack-field">
                       <label>Nama Lengkap <span style="color:red;">*</span></label>
@@ -1646,7 +1693,7 @@
                      <input type="hidden" id="kontrakUser_atasanNama" />
                      <div id="kontrakUser_atasanSearchList" class="autocomplete-list" style="display:none;"></div>
                      <div id="kontrakUser_atasanSelected" style="margin-top:8px; font-weight:600; color:var(--success); display:none;"></div>
-                     <div class="helper-text" style="margin-top:4px;">Wajib dipilih untuk usulan Tenaga Kependidikan agar usulan diteruskan ke akun Atasan Langsung untuk evaluasi kinerja 7 kriteria.</div>
+                     <div class="helper-text" style="margin-top:4px;">Wajib dicari dan dipilih agar usulan kontrak diteruskan langsung ke akun Atasan Langsung untuk penilaian evaluasi kinerja.</div>
                    </div>
                  </div>
 
@@ -1844,6 +1891,7 @@
                 <option value="Diajukan">Diajukan</option>
                 <option value="Siap diajukan ke SIASN dan update E-duk">Siap Diajukan ke SIASN &amp; Update E-duk</option>
                 <option value="Siap update E-duk">Siap Update E-duk</option>
+                <option value="Ditolak">Ditolak</option>
               </select>
               <button type="button" class="btn btn-secondary" onclick="loadPmkUsulanList()" style="padding:6px 14px; font-size:13px;">🔄 Refresh List</button>
             </div>
@@ -1974,7 +2022,7 @@
                       <option value="docx">📄 Word Document (.docx)</option>
                       <option value="gdocs">🌐 Google Docs</option>
                     </select>
-                    <button type="button" class="btn btn-outline" id="buatSk_btnPreviewTemplate" onclick="if(BUAT_SK.templateId) previewDocxTemplate(BUAT_SK.templateId)" title="Preview file template yang digunakan" style="display:none; white-space:nowrap; height:42px; padding:0 16px; font-weight:600; font-size:13px; align-items:center; gap:6px; flex-shrink:0;">
+                    <button type="button" class="btn btn-outline" id="buatSk_btnPreviewTemplate" onclick="if(BUAT_SK.templateId) previewDocxTemplate(BUAT_SK.templateId, this)" title="Preview file template yang digunakan" style="display:none; white-space:nowrap; height:42px; padding:0 16px; font-weight:600; font-size:13px; align-items:center; gap:6px; flex-shrink:0;">
                       👁️ Preview Template
                     </button>
                   </div>
@@ -2031,13 +2079,177 @@
                 </div>
               </div>
 
-              <!-- Step 5: Dynamic Form Fields -->
+              <!-- Step 5: Dynamic Form Fields & Batch CPTU Option -->
               <div id="buatSk_dynamicFormWrap" style="display:none;margin-top:16px;">
-                <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:12px;">
-                  <h4 style="margin:0 0 4px 0;font-size:14px;font-weight:700;">📝 Data SK</h4>
-                  <p style="margin:0;font-size:12px;color:var(--text-muted);">Field yang diisi otomatis (pimpinan, nama jabatan, gaji pokok) tidak perlu diisi manual.</p>
+                <!-- Opsi Mode Pembuatan SK CPTU (Tunggal vs Batch) -->
+                <div id="buatSk_cptuBatchCard" style="display:none; margin-bottom:18px; background:var(--surface-alt,#f8fafc); border:1px solid var(--border,#cbd5e1); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+                    <div>
+                      <h4 style="margin:0 0 4px 0; font-size:15px; font-weight:700; color:var(--primary,#1e40af); display:flex; align-items:center; gap:8px;">
+                        <span id="cptu_batchCardTitle">⚡ Mode Pembuatan Dokumen Kolektif</span>
+                      </h4>
+                      <p style="margin:0; font-size:12px; color:var(--text-muted);" id="cptu_batchCardSubtitle">Pilih apakah ingin mengisi form satu dokumen secara manual atau memproses dokumen secara kolektif (Excel, Google Spreadsheet, atau Input Tabel).</p>
+                    </div>
+                    <!-- Toggle Pill -->
+                    <div style="display:inline-flex; background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:8px; padding:3px; gap:4px;">
+                      <button type="button" id="cptu_modeSingleBtn" class="btn btn-sm" style="background:var(--primary,#1e40af); color:#fff; border-radius:6px; font-size:12px; padding:6px 14px; font-weight:600; border:none; cursor:pointer;" onclick="cptuSwitchMode('single')">📝 Form Tunggal</button>
+                      <button type="button" id="cptu_modeBatchBtn" class="btn btn-sm btn-ghost" style="border-radius:6px; font-size:12px; padding:6px 14px; font-weight:600; border:none; cursor:pointer;" onclick="cptuSwitchMode('batch')">⚡ Buat SK Kolektif</button>
+                    </div>
+                  </div>
+
+                  <!-- Container Khusus Import Batch & Kolektif -->
+                  <div id="cptu_batchSection" style="display:none; border-top:1px dashed var(--border,#cbd5e1); padding-top:14px; margin-top:8px;">
+                    <div class="grid-2 kp-grid" style="gap:14px; margin-bottom:12px;">
+                      <!-- Opsi 1: File Excel -->
+                      <div style="background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:10px; padding:14px;">
+                        <label style="font-weight:700; font-size:13px; margin-bottom:6px; display:block; color:var(--text-main);">📁 Opsi 1: Upload File Excel (.xlsx / .xls / .csv)</label>
+                        <p style="font-size:11px; color:var(--text-muted); margin:0 0 10px 0;">Unggah berkas spreadsheet dari komputer Anda.</p>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                          <input type="file" id="cptu_batchFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="cptuHandleBatchFileUpload(event)" />
+                          <button type="button" class="btn btn-secondary btn-sm" style="font-size:12px; display:flex; align-items:center; gap:6px;" onclick="document.getElementById('cptu_batchFileInput').click()">
+                            <span>📂 Pilih File Excel</span>
+                          </button>
+                          <span id="cptu_batchFileName" style="font-size:12px; color:var(--text-muted); font-style:italic;">Belum ada file dipilih</span>
+                        </div>
+                      </div>
+
+                      <!-- Opsi 2: Link Google Spreadsheet -->
+                      <div style="background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:10px; padding:14px;">
+                        <label style="font-weight:700; font-size:13px; margin-bottom:6px; display:block; color:var(--text-main);">🔗 Opsi 2: Link Google Spreadsheet</label>
+                        <p style="font-size:11px; color:var(--text-muted); margin:0 0 10px 0;">Pastikan link sheet memiliki akses "Anyone with link" atau organisasi.</p>
+                        <div style="display:flex; gap:8px;">
+                          <input type="url" id="cptu_batchSpreadsheetUrl" class="field-input" placeholder="https://docs.google.com/spreadsheets/d/..." style="font-size:12px; padding:6px 10px;" />
+                          <button type="button" class="btn btn-secondary btn-sm" style="font-size:12px; white-space:nowrap;" onclick="cptuFetchGoogleSpreadsheet()">📥 Ambil Sheet</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Pemilih Sheet (Muncul saat file Excel atau Google Spreadsheet dimuat) -->
+                    <div id="cptu_batchSheetSelectWrap" style="display:none; background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:10px; padding:12px 14px; margin-bottom:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:18px;">📑</span>
+                        <div>
+                          <strong style="font-size:13px; color:var(--text-main);">Pilih Sheet yang Ingin Diambil:</strong>
+                          <span id="cptu_batchSheetInfo" style="font-size:11px; color:var(--text-muted); margin-left:6px;">Pilih sheet yang sesuai</span>
+                        </div>
+                      </div>
+                      <div style="display:flex; align-items:center; gap:8px;">
+                        <select id="cptu_batchSheetSelect" class="field-input" style="font-size:12px; font-weight:600; padding:6px 12px; min-width:220px; max-width:340px;" onchange="cptuHandleSheetChange(this.value)">
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- Opsi 3: Tambah Tabel Manual (Input Kolektif & Cari Data Utama) -->
+                    <div id="cptu_manualTableOptionWrap" style="background:var(--surface,#ffffff); border:1px solid var(--border,#cbd5e1); border-radius:10px; padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                      <div>
+                        <strong style="font-size:13px; color:var(--text-main); display:flex; align-items:center; gap:6px;">
+                          <span>➕ Opsi 3: Tambah Tabel Langsung (Input Kolektif)</span>
+                        </strong>
+                        <p style="font-size:11px; color:var(--text-muted); margin:2px 0 0 0;">Cari nama lengkap pegawai dari Data Utama untuk mengisi kolom otomatis, dan lengkapi kolom yang kosong secara manual di tabel.</p>
+                      </div>
+                      <button type="button" class="btn btn-outline btn-sm" style="font-size:12px; display:flex; align-items:center; gap:6px; border-color:var(--primary); color:var(--primary);" onclick="cptuManualAddRow()">
+                        <span>➕ Tambah Baris ke Tabel</span>
+                      </button>
+                    </div>
+
+                    <!-- Petunjuk Header Kolom & Tombol Download Template -->
+                    <div style="background:rgba(59, 130, 246, 0.06); border:1px solid rgba(59, 130, 246, 0.2); border-radius:8px; padding:12px 14px; margin-bottom:14px;">
+                      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+                        <div style="flex:1; min-width:260px;">
+                          <div style="font-weight:700; font-size:12px; color:var(--primary,#1e40af); margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+                            <span>💡 Format Kolom Header Excel / Spreadsheet</span>
+                          </div>
+                          <p style="font-size:11px; color:var(--text-main); margin:0 0 6px 0; line-height:1.5;">
+                            Gunakan nama kolom berikut (mendukung dengan kurung kurawal <code>{{...}}</code> maupun tanpa kurung kurawal):
+                          </p>
+                          <div id="cptu_batchPlaceholderBadges" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;">
+                            <span class="tag-chip"><code>{{nomor_sk}}</code></span>
+                            <span class="tag-chip"><code>{{tmt}}</code></span>
+                            <span class="tag-chip"><code>{{nama_lengkap}}</code></span>
+                            <span class="tag-chip"><code>{{nip}}</code></span>
+                            <span class="tag-chip"><code>{{tmp_lhr}}</code></span>
+                            <span class="tag-chip"><code>{{tgl_lhr}}</code></span>
+                            <span class="tag-chip"><code>{{pendidikan}}</code></span>
+                            <span class="tag-chip"><code>{{jurusan}}</code></span>
+                            <span class="tag-chip"><code>{{thn_lulus}}</code></span>
+                            <span class="tag-chip"><code>{{pangkat}}</code></span>
+                            <span class="tag-chip"><code>{{golongan}}</code></span>
+                            <span class="tag-chip"><code>{{gaji_pokok}}</code></span>
+                            <span class="tag-chip"><code>{{total_gaji}}</code></span>
+                            <span class="tag-chip"><code>{{jabatan}}</code></span>
+                            <span class="tag-chip"><code>{{unit_es_ii}}</code></span>
+                          </div>
+                          <div style="font-size:11px; color:var(--text-muted); line-height:1.4;">
+                            * Untuk <strong>gaji pokok</strong> cukup input angkanya saja (misal: <code>3000000</code>), sistem otomatis memformat menjadi rupiah dan terbilang lengkap, serta menghitung 80% gaji CPTU jika berlaku.
+                          </div>
+                        </div>
+                        <button type="button" class="btn btn-outline btn-sm" style="font-size:12px; white-space:nowrap; display:flex; align-items:center; gap:6px; border-color:var(--primary); color:var(--primary);" onclick="cptuDownloadExcelTemplate()">
+                          <span>📥 Unduh Format Excel Template</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Tabel Pratinjau Baris Terdeteksi -->
+                    <div id="cptu_batchPreviewWrap" style="display:none;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+                        <div style="font-weight:700; font-size:13px; display:flex; align-items:center; gap:8px;">
+                          <span>📋 Pratinjau & Input Data Kolektif</span>
+                          <span id="cptu_batchCountBadge" class="badge" style="background:var(--success,#10b981); color:#fff; font-size:11px; padding:2px 8px; border-radius:12px;">0 Data</span>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                          <button type="button" class="btn btn-secondary btn-sm" style="font-size:11.5px; display:flex; align-items:center; gap:4px;" onclick="cptuManualAddRow()">➕ Tambah Baris</button>
+                          <button type="button" class="btn btn-ghost btn-sm" style="color:var(--danger); font-size:11px;" onclick="cptuResetBatchData()">🗑️ Hapus Semua Data</button>
+                        </div>
+                      </div>
+                      <div style="overflow-x:auto; max-height:420px; border:1px solid var(--border); border-radius:8px; background:var(--surface,#ffffff); margin-bottom:14px;">
+                        <table id="cptu_batchTable" style="width:100%; border-collapse:collapse; font-size:11.5px;">
+                          <thead id="cptu_batchTableHead" style="position:sticky; top:0; background:var(--surface-alt); border-bottom:1px solid var(--border); font-weight:700; text-align:left; z-index:10;">
+                            <tr id="cptu_batchTableHeadRow">
+                              <th style="padding:6px 10px;">#</th>
+                              <th style="padding:6px 10px;">Nama Lengkap</th>
+                              <th style="padding:6px 10px;">NIP</th>
+                              <th style="padding:6px 10px;" id="cptu_th_nomorDoc">Nomor SK / SPMT</th>
+                              <th style="padding:6px 10px;">TMT</th>
+                              <th style="padding:6px 10px;">Golongan</th>
+                              <th style="padding:6px 10px;">Pangkat</th>
+                              <th style="padding:6px 10px;">Gaji Pokok</th>
+                              <th style="padding:6px 10px;">Total Gaji (80%)</th>
+                              <th style="padding:6px 10px;">Jabatan</th>
+                              <th style="padding:6px 10px;">Unit</th>
+                              <th style="padding:6px 10px;">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody id="cptu_batchTableBody"></tbody>
+                        </table>
+                      </div>
+
+                      <!-- Progress & Tombol Eksekusi Batch -->
+                      <div id="cptu_batchProgressWrap" style="display:none; margin-bottom:14px;">
+                        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; font-weight:600;">
+                          <span id="cptu_batchProgressMsg">Memproses dokumen...</span>
+                          <span id="cptu_batchProgressPercent">0%</span>
+                        </div>
+                        <div style="width:100%; height:8px; background:var(--surface-alt); border-radius:4px; overflow:hidden; border:1px solid var(--border);">
+                          <div id="cptu_batchProgressBar" style="width:0%; height:100%; background:var(--primary); transition:width 0.3s ease;"></div>
+                        </div>
+                      </div>
+
+                      <div style="display:flex; justify-content:flex-end; gap:10px;">
+                        <button type="button" id="cptu_batchGenerateBtn" class="btn btn-primary" style="padding:9px 20px; font-weight:700; font-size:13px; display:flex; align-items:center; gap:8px;" onclick="cptuExecuteBatchGenerate()">
+                          <span>🚀 Generate Semua Dokumen (Batch .ZIP)</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div id="buatSk_dynamicFields" class="kp-grid"></div>
+
+                <div id="buatSk_singleFormWrap">
+                  <div style="border-top:1px solid var(--border);padding-top:16px;margin-bottom:12px;">
+                    <h4 style="margin:0 0 4px 0;font-size:14px;font-weight:700;">📝 Data SK</h4>
+                    <p style="margin:0;font-size:12px;color:var(--text-muted);">Field yang diisi otomatis (pimpinan, nama jabatan, gaji pokok) tidak perlu diisi manual.</p>
+                  </div>
+                  <div id="buatSk_dynamicFields" class="kp-grid"></div>
+                </div>
               </div>
 
               <!-- Step 6: Loop Tabel Pejabat (untuk SK Tutam) -->
@@ -2106,8 +2318,8 @@
 
               <!-- Tombol Generate & Preview -->
               <div id="buatSk_actionBar" style="display:none;margin-top:24px;padding-top:16px;border-top:1px solid var(--border);gap:10px;flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="buatSkGenerate()" style="font-weight:700;">⚡ Buat SK</button>
-                <button class="btn btn-secondary" onclick="buatSkPreview()" style="font-weight:600;background:var(--surface-alt);color:var(--text-main);border:1px solid var(--border);">👁️ Preview SK</button>
+                <button class="btn btn-primary" id="buatSk_btnGenerate" onclick="buatSkGenerate(this)" style="font-weight:700;">⚡ Buat SK</button>
+                <button class="btn btn-secondary" id="buatSk_btnPreview" onclick="buatSkPreview(this)" style="font-weight:600;background:var(--surface-alt);color:var(--text-main);border:1px solid var(--border);">👁️ Preview SK</button>
                 <button class="btn btn-secondary" onclick="buatSkReset()">🔄 Reset Form</button>
               </div>
 
@@ -2147,7 +2359,7 @@
             <div class="stack-field">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
                 <label class="kp-label" style="margin:0;">Cari Nama / NIP</label>
-                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadPeranAkunList()">🔄 Segarkan Daftar</button>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadPeranAkunList()">🔄 Refresh</button>
               </div>
               <input type="text" id="peranAkun_search" class="field-input" placeholder="Ketik untuk menyaring daftar di bawah..." />
             </div>
@@ -2209,7 +2421,19 @@
           <div class="card">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
               <h3 style="margin:0;">Template Terdaftar</h3>
-              <button type="button" class="btn btn-outline kp-small-btn" onclick="loadTemplateList()">🔄 Segarkan Daftar</button>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <label style="font-size:13px; font-weight:600; color:var(--text-muted);">Filter:</label>
+                <select id="filterTplLayanan" class="field-input" style="width:auto; min-width:180px; padding:6px 10px; font-size:13px;" onchange="filterTemplateTableByLayanan(this.value)">
+                  <option value="">Semua Layanan</option>
+                  <option value="Kontrak Tendik">Kontrak Tendik</option>
+                  <option value="Kontrak Dosen">Kontrak Dosen</option>
+                  <option value="Kontrak">Kontrak (Umum)</option>
+                  <option value="Kenaikan Pangkat">Kenaikan Pangkat</option>
+                  <option value="Pensiun">Pensiun</option>
+                  <option value="Buat SK dan Surat">Buat SK dan Surat</option>
+                </select>
+                <button type="button" class="btn btn-outline kp-small-btn" onclick="loadTemplateList()">🔄 Refresh</button>
+              </div>
             </div>
             <table class="table-list">
               <thead>
@@ -2289,7 +2513,7 @@
   </div>
   <!-- ======================= MODAL TAMBAH JENIS SK / SURAT ======================= -->
   <div class="modal-overlay" id="modalTambahJenisSurat" style="display:none;">
-    <div class="modal-box" style="max-width:500px; width:92%;">
+    <div class="modal-box" style="max-width:540px; width:92%;">
       <div class="modal-header">
         <strong style="font-size:15.5px; color:var(--text);">➕ Tambah Jenis SK / Surat Baru</strong>
         <button class="btn btn-secondary" onclick="tutupModalTambahJenisSurat()" style="padding:4px 10px; font-size:13px;">✕</button>
@@ -2299,6 +2523,57 @@
           <label class="kp-label" style="font-weight:600; margin-bottom:6px; display:block;">Nama Jenis SK / Surat <span style="color:#ef4444;">*</span></label>
           <input type="text" id="modalTambahJenis_nama" class="field-input" placeholder="Contoh: Surat Tugas, SK Panitia" style="width:100%; box-sizing:border-box; padding:10px 14px;" />
         </div>
+
+        <!-- Pilihan Format / Alur Pembuatan SK -->
+        <div class="stack-field" style="margin-bottom:18px;">
+          <label class="kp-label" style="font-weight:600; margin-bottom:8px; display:block; font-size:13.5px;">
+            Pilihan Alur / Format Pembuatan SK <span style="color:#ef4444;">*</span>
+          </label>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <!-- Option 1: Normal -->
+            <label class="format-choice-card" style="display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1.5px solid var(--border,#cbd5e1); border-radius:10px; cursor:pointer; background:var(--surface,#fff); transition:all 0.2s ease;">
+              <input type="radio" name="modalTambahJenis_tipeFormat" value="normal" checked style="margin-top:3px; accent-color:var(--primary,#1d4ed8); width:17px; height:17px;" />
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <strong style="font-size:13.5px; color:var(--text,#0f172a);">📄 Normal (Dokumen Tunggal)</strong>
+                  <span style="font-size:10.5px; background:var(--surface-alt,#f1f5f9); color:var(--text-muted,#64748b); padding:2px 7px; border-radius:12px; font-weight:600;">Standar</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted,#64748b); margin-top:3px; line-height:1.4;">
+                  Satu berkas dokumen per pembuatan dengan pengisian formulir standar dan pencarian data pegawai.
+                </div>
+              </div>
+            </label>
+
+            <!-- Option 2: Kolektif -->
+            <label class="format-choice-card" style="display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1.5px solid var(--border,#cbd5e1); border-radius:10px; cursor:pointer; background:var(--surface,#fff); transition:all 0.2s ease;">
+              <input type="radio" name="modalTambahJenis_tipeFormat" value="kolektif" style="margin-top:3px; accent-color:var(--primary,#1d4ed8); width:17px; height:17px;" />
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <strong style="font-size:13.5px; color:var(--text,#0f172a);">⚡ Kolektif (Multi-Pegawai / Batch)</strong>
+                  <span style="font-size:10.5px; background:#e0f2fe; color:#0369a1; padding:2px 7px; border-radius:12px; font-weight:600;">Seperti SK PTU 100% / SK CPTU</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted,#64748b); margin-top:3px; line-height:1.4;">
+                  Mendukung input satu per satu atau banyak data sekaligus via Import Excel, Google Spreadsheet, dan tambah baris tabel.
+                </div>
+              </div>
+            </label>
+
+            <!-- Option 3: Banyak Lampiran -->
+            <label class="format-choice-card" style="display:flex; align-items:flex-start; gap:12px; padding:12px 14px; border:1.5px solid var(--border,#cbd5e1); border-radius:10px; cursor:pointer; background:var(--surface,#fff); transition:all 0.2s ease;">
+              <input type="radio" name="modalTambahJenis_tipeFormat" value="banyak_lampiran" style="margin-top:3px; accent-color:var(--primary,#1d4ed8); width:17px; height:17px;" />
+              <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <strong style="font-size:13.5px; color:var(--text,#0f172a);">📋 Banyak Lampiran (Tabel Pejabat Lampiran)</strong>
+                  <span style="font-size:10.5px; background:#fef3c7; color:#b45309; padding:2px 7px; border-radius:12px; font-weight:600;">Seperti SK Tutam</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted,#64748b); margin-top:3px; line-height:1.4;">
+                  Satu SK dengan lampiran tabel dinamis untuk daftar pejabat yang dilantik dan diberhentikan.
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <div style="background:var(--surface-alt); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:20px;">
           <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
             <input type="checkbox" id="modalTambahJenis_toggleUser" style="width:18px; height:18px; margin-top:2px; cursor:pointer; accent-color:var(--primary);" checked />
@@ -2361,7 +2636,7 @@
           <span>Formulir Evaluasi Kinerja &amp; Sasaran Kinerja Pegawai (SKP)</span>
         </strong>
         <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" class="btn btn-outline kp-small-btn" onclick="refreshActiveModalEvaluasiTkk()" title="Segarkan Data Modal">🔄 Segarkan Data</button>
+          <button type="button" class="btn btn-outline kp-small-btn" onclick="refreshActiveModalEvaluasiTkk()" title="Refresh Data Modal">🔄 Refresh</button>
           <button type="button" class="btn btn-secondary" onclick="tutupModalEvaluasiTkk()" style="padding:4px 10px; font-size:13px;">&times; Tutup</button>
         </div>
       </div>
@@ -2431,7 +2706,7 @@
                         </label>
                         <label style="display:flex; align-items:flex-start; gap:10px; padding:8px 12px; border-radius:6px; background:var(--surface); border:1px solid var(--border); cursor:pointer; font-size:13px;">
                           <input type="radio" name="eval_p1" value="2" onchange="hitungTotalSkorEvaluasiTkk()" checked style="margin-top:3px;" />
-                          <span><strong style="color:#2563eb;">2</strong> &mdash; Kinerja mencapai target dengan cukup baik (70%–85%).</span>
+                          <span><strong style="color:#2563eb;">2</strong> &mdash; Kinerja mencapai target dengan baik (70%–85%).</span>
                         </label>
                         <label style="display:flex; align-items:flex-start; gap:10px; padding:8px 12px; border-radius:6px; background:var(--surface); border:1px solid var(--border); cursor:pointer; font-size:13px;">
                           <input type="radio" name="eval_p1" value="3" onchange="hitungTotalSkorEvaluasiTkk()" style="margin-top:3px;" />
@@ -2608,7 +2883,7 @@
               <div style="font-weight:700; display:flex; align-items:center; gap:6px; margin-bottom:4px;">
                 <span>⚠️</span> <span>Rekomendasi Tidak Diperbarui (Tidak Direkomendasikan)</span>
               </div>
-              <div>Karena hasil penilaian kinerja di bawah standar kelayakan (skor &lt; 11), tahap pembuatan <strong>Sasaran Kinerja Pegawai (SKP) dinonaktifkan</strong>. Anda dapat langsung menyimpan dan mengirimkan hasil evaluasi kinerja bertanda tangan ini ke <strong>Admin Kepegawaian</strong> melalui tombol aksi di bawah.</div>
+              <div>Karena hasil penilaian kinerja di bawah standar kelayakan (skor &lt; 14 atau terdapat kriteria bernilai 1 / kurang dari 70%), tahap pembuatan <strong>Sasaran Kinerja Pegawai (SKP) dinonaktifkan</strong>. Anda dapat langsung menyimpan dan mengirimkan hasil evaluasi kinerja bertanda tangan ini ke <strong>Admin Kepegawaian</strong> melalui tombol aksi di bawah.</div>
             </div>
           </div> <!-- End evalTkk_kriteriaSection -->
 
@@ -2656,9 +2931,9 @@
               PILIH TEMPLATE FORMULIR EVALUASI KINERJA
             </label>
             <div id="evalTkk_tplSelectorWrap"></div>
-            <div style="font-size:12px; color:#475569; margin-top:8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 12px; display:flex; align-items:center; gap:8px;">
+            <div id="evalTkk_templateHintBox" style="font-size:12px; color:#475569; margin-top:8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 12px; display:flex; align-items:center; gap:8px;">
               <span style="color:#2563eb; font-size:14px;">ℹ️</span>
-              <span>Template aktif untuk Evaluasi Kinerja saat ini adalah <strong>Google Docs (GDocs)</strong>. Hasil generate akan otomatis membuka tab baru Google Docs.</span>
+              <span id="evalTkk_templateHintText">Format dokumen mengikuti template yang dipilih (Microsoft Word atau Google Docs) dan akan langsung terbuka di tab baru.</span>
             </div>
           </div>
 

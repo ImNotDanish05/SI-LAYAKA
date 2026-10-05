@@ -241,88 +241,116 @@ function processSignaturePlaceholderInBody_(container, dataContext) {
 }
 
 function renderDocumentBody_(body, dataContext) {
-  // 0) Sisipkan foto 3x4 dan tanda tangan digital (jika ada tag) dan saring base64 dari teks
-  processPhotoPlaceholderInBody_(body, dataContext);
-  processSignaturePlaceholderInBody_(body, dataContext);
+  // 0) Sisipkan foto 3x4 dan tanda tangan digital (hanya jika ada tag relevan dalam teks)
+  const fullBodyText = body.getText();
+  const textLower = fullBodyText.toLowerCase();
 
-  // 1) Proses loop tabel dinamis dahulu (agar tag di dalamnya baru
-  //    diproses setelah baris digandakan sesuai jumlah data). Mendukung
-  //    LEBIH DARI SATU loop berbeda dalam dokumen yang sama.
-  processTableLoops_(body, dataContext);
-
-  // 2) Isi tag {{..}} di SETIAP SEL TABEL langsung di sel itu sendiri
-  //    (clear + tulis ulang SATU paragraf bersih), BUKAN lewat
-  //    body.replaceText() global seperti sebelumnya. Termasuk tabel
-  //    yang bersarang di dalam sel tabel lain (lihat findAllTablesRecursive_).
-  //
-  //    ALASAN PENTING: rumus panjang di template (mis. rumus golongan
-  //    yang ditulis 18-21 baris terpisah demi keterbacaan saat mengedit)
-  //    tersimpan sebagai BANYAK paragraf terpisah DALAM SATU SEL.
-  //    body.replaceText() cuma mengosongkan TEKS pada tiap paragraf yang
-  //    cocok, tapi PARAGRAF KOSONGNYA TETAP ADA -- baris tabel jadi tetap
-  //    setinggi rumus mentahnya (belasan baris kosong) walau hasil akhir
-  //    yang tercetak cuma satu angka pendek ("850"), sehingga tabel &
-  //    jumlah halaman dokumen membengkak. Dengan clear()+appendParagraph()
-  //    di level sel, seluruh paragraf sisa itu ikut terhapus dan diganti
-  //    SATU paragraf berisi hasil akhir saja -- tinggi baris otomatis
-  //    mengikuti PANJANG HASIL, bukan panjang rumus mentahnya.
-  //
-  //    Sel yang sudah diisi lewat loop (langkah 1, via fillRowPlaceholders_)
-  //    otomatis dilewati di sini karena sudah tidak ada "{{" tersisa.
-  findAllTablesRecursive_(body).forEach(table => renderTableCellsInPlace_(table, dataContext));
-
-  // 3) Sisa tag {{..}} pada PARAGRAF BIASA (luar tabel -- heading, baris
-  //    tanda tangan, dst.) diisi lewat body.replaceText() seperti semula.
-  //    Ini aman karena paragraf biasa di luar tabel tidak ditulis sebagai
-  //    rumus multi-baris, jadi tidak kena masalah sisa-paragraf-kosong.
-  const fullText = body.getText();
-  const found = [];
-  const seen = {};
-  let m;
-  TAG_REGEX.lastIndex = 0;
-  while ((m = TAG_REGEX.exec(fullText)) !== null) {
-    const key = m[1];
-    if (!seen[key]) { seen[key] = true; found.push(key); }
+  if (textLower.indexOf('foto') !== -1 || textLower.indexOf('photo') !== -1) {
+    processPhotoPlaceholderInBody_(body, dataContext);
+  }
+  if (textLower.indexOf('ttd') !== -1 || textLower.indexOf('signature') !== -1 || textLower.indexOf('tanda_tangan') !== -1) {
+    processSignaturePlaceholderInBody_(body, dataContext);
   }
 
-  found.forEach(rawExpr => {
-    let value;
-    try {
-      value = evaluateAndFormat_(rawExpr, dataContext);
-    } catch (e) {
-      value = `[ERROR:${rawExpr}]`;
-    }
-    const pattern = '\\{\\{\\s*' + escapeRegex_(rawExpr) + '\\s*\\}\\}';
-    const repVal = escapeReplacement_(value);
-    try {
-      body.replaceText(pattern, repVal);
-    } catch (e) {
-      body.replaceText(pattern, repVal === '' ? ' ' : repVal);
-    }
-  });
+  // 1) Proses loop tabel dinamis dahulu (hanya jika ada marker loop {# / {{#)
+  if (fullBodyText.indexOf('{#') !== -1 || fullBodyText.indexOf('{{#') !== -1) {
+    processTableLoops_(body, dataContext);
+  }
 
-  // 4) Auto-fit tinggi baris tabel & pastikan seluruh isi tabel berukuran font 9 HANYA jika Opsi B (AK Konversi Kumulatif)
+  // 2) Kumpulkan semua tabel CUKUP SEKALI, lalu isi tag di setiap sel
   const isOpsiB = String(dataContext.sub_layanan || dataContext.sub_menu || dataContext.subLayanan || '').toLowerCase().includes('kumulatif');
-  findAllTablesRecursive_(body).forEach(table => {
-    autoFitTableRows_(table);
-    if (isOpsiB) {
-      enforceMinFontSizeInContainer_(table, 9);
+  const tables = findAllTablesRecursive_(body);
+  tables.forEach(table => renderTableCellsInPlace_(table, dataContext, isOpsiB));
+
+  // 3) Sisa tag {{..}} pada PARAGRAF BIASA (luar tabel -- heading, baris tanda tangan, dst.)
+  const remainingText = body.getText();
+  if (remainingText.indexOf('{{') !== -1) {
+    const found = [];
+    const seen = {};
+    let m;
+    TAG_REGEX.lastIndex = 0;
+    while ((m = TAG_REGEX.exec(remainingText)) !== null) {
+      const key = m[1];
+      if (!seen[key]) { seen[key] = true; found.push(key); }
     }
-  });
+
+    found.forEach(rawExpr => {
+      let value;
+      try {
+        value = evaluateAndFormat_(rawExpr, dataContext);
+      } catch (e) {
+        value = `[ERROR:${rawExpr}]`;
+      }
+      const pattern = '\\{\\{\\s*' + escapeRegex_(rawExpr) + '\\s*\\}\\}';
+      const repVal = escapeReplacement_(value);
+      try {
+        body.replaceText(pattern, repVal);
+      } catch (e) {
+        body.replaceText(pattern, repVal === '' ? ' ' : repVal);
+      }
+    });
+  }
+
+  // 4) Rapikan paragraf kosong berlebih di luar tabel agar tanda tangan & tembusan tidak terdorong ke halaman baru
+  cleanExcessiveEmptyParagraphsInBody_(body);
+}
+
+/**
+ * Menghapus paragraf kosong berturut-turut di luar tabel (menyisakan maks 1 paragraf kosong untuk spasi wajar),
+ * sehingga bagian tanda tangan, tanggal penetapan, dan tembusan tidak terlempar ke halaman baru.
+ */
+function cleanExcessiveEmptyParagraphsInBody_(body) {
+  try {
+    const total = body.getNumChildren();
+    let consecutiveEmpty = 0;
+    for (let i = total - 1; i >= 0; i--) {
+      const el = body.getChild(i);
+      if (el.getType() === DocumentApp.ElementType.PARAGRAPH) {
+        const p = el.asParagraph();
+        const text = p.getText().trim();
+        const numC = p.getNumChildren();
+        let hasMedia = false;
+        for (let c = 0; c < numC; c++) {
+          const cType = p.getChild(c).getType();
+          if (cType === DocumentApp.ElementType.INLINE_IMAGE || cType === DocumentApp.ElementType.PAGE_BREAK) {
+            hasMedia = true;
+            break;
+          }
+        }
+        if (text === '' && !hasMedia) {
+          consecutiveEmpty++;
+          if (consecutiveEmpty > 1) {
+            try { p.removeFromParent(); } catch (_) {}
+          }
+        } else {
+          consecutiveEmpty = 0;
+        }
+      } else {
+        consecutiveEmpty = 0;
+      }
+    }
+  } catch (_) {}
 }
 
 /** Isi tag {{..}} di setiap sel sebuah tabel, sel per sel (lihat renderCellTextInPlace_). */
-function renderTableCellsInPlace_(table, dataContext) {
+function renderTableCellsInPlace_(table, dataContext, isOpsiB) {
   for (let r = 0; r < table.getNumRows(); r++) {
     const row = table.getRow(r);
     for (let c = 0; c < row.getNumCells(); c++) {
       const cell = row.getCell(c);
-      // Sel yang berisi tabel BERSARANG dilewati di sini -- clear() akan
-      // menghapus tabel anaknya. Tabel bersarang itu diproses SENDIRI
-      // (findAllTablesRecursive_ sudah menemukannya sebagai tabel terpisah).
+      // Sel yang berisi tabel BERSARANG dilewati di sini -- diproses sebagai tabel terpisah
       if (cellHasNestedTable_(cell)) continue;
-      renderCellTextInPlace_(cell, dataContext);
+      renderCellTextInPlace_(cell, dataContext, isOpsiB);
     }
+    // Set auto-fit minimum height = 0 untuk baris non-tanda tangan agar tinggi sel selalu rapat mengikuti konten,
+    // namun pertahankan tinggi baris tanda tangan jika telah diset oleh pembuat template
+    try {
+      const rowText = row.getText();
+      const isSigRow = /ttd|signature|tanda_tangan|pihak|pejabat|penilai|meterai/i.test(rowText);
+      if (!isSigRow) {
+        row.setMinimumHeight(0);
+      }
+    } catch (_) {}
   }
 }
 
@@ -356,30 +384,61 @@ function cellHasImage_(cell) {
 /**
  * Evaluasi semua tag {{..}} pada teks SATU sel tabel.
  *
- * DUA PERILAKU BERBEDA tergantung JUMLAH PARAGRAF di dalam sel:
- * - Sel dengan BANYAK paragraf (> AMBANG_PARAGRAF_FORMULA, HANYA untuk rumus AK
- *   Konversi yang sengaja ditulis 15-21 baris terpisah demi keterbacaan
- *   saat mengedit template): di-COLLAPSE jadi SATU paragraf hasil akhir.
+ * DUA PERILAKU BERBEDA tergantung sifat konten di dalam sel:
+ * - Sel rumus (multi-baris formula perhitungan yang sengaja ditulis terpisah demi keterbacaan):
+ *   di-COLLAPSE jadi SATU paragraf hasil akhir bersih tanpa meninggalkan baris kosong.
  *   Sel yang memuat gambar (InlineImage) atau blok tanda tangan/biodata TIDAK PERNAH di-collapse.
  * - Sel biasa (label di satu baris, nilai di baris lain, blok tanda tangan, dsb.):
- *   tag diisi LANGSUNG DI DALAM paragraf masing-masing, TANPA menggabungkan
- *   paragraf sama sekali, menjaga integritas gambar tanda tangan digital.
+ *   tag diisi LANGSUNG DI DALAM paragraf masing-masing, menjaga integritas struktur dan gambar.
  */
-function renderCellTextInPlace_(cell, dataContext) {
+function renderCellTextInPlace_(cell, dataContext, isOpsiB) {
   const originalText = cell.getText();
-  if (originalText.indexOf('{{') === -1) return; // tidak ada tag -> lewati, hemat proses
+  if (originalText.indexOf('{{') === -1) {
+    if (isOpsiB) {
+      const nChild = cell.getNumChildren();
+      for (let i = 0; i < nChild; i++) {
+        const ch = cell.getChild(i);
+        if (ch.getType() === DocumentApp.ElementType.PARAGRAPH) {
+          enforceMinFontSizeInParagraph_(ch.asParagraph(), 9);
+        }
+      }
+    }
+    return false;
+  }
 
-  // JANGAN PERNAH lakukan cell.clear() jika sel memuat gambar (InlineImage) atau memuat placeholder tanda tangan/foto/pejabat!
+  // JANGAN PERNAH lakukan collapse/clear jika sel memuat gambar (InlineImage) atau memuat placeholder tanda tangan/foto/pejabat/identitas!
   const hasImage = cellHasImage_(cell);
-  const isSignatureOrPhotoCell = /ttd|signature|foto|pas_foto|pejabat|penilai|pegawai/i.test(originalText);
-  // Sel rumus multi-baris hanya untuk formula perhitungan (mis. rumus AK Konversi yang sengaja ditulis belasan baris)
-  const isFormulaCell = !hasImage && !isSignatureOrPhotoCell && /\{\{\s*(?:if|set|ak_|konversi|kumulatif|golongan|pangkat|dpcp)\b/i.test(originalText);
+  const isSignatureOrPhotoCell = /ttd|signature|tanda_tangan|foto|pas_foto|photo|pejabat|penilai|pihak|nama|nip|nppu|nik|pegawai|dekan|rektor|direktur|pimpinan|mengetahui/i.test(originalText);
 
-  const AMBANG_PARAGRAF_FORMULA = 5;
   const numAnak = cell.getNumChildren();
 
-  if (numAnak > AMBANG_PARAGRAF_FORMULA && isFormulaCell) {
-    // --- Sel rumus multi-baris: collapse ke SATU paragraf (perilaku lama, dipertahankan HANYA untuk rumus). ---
+  // Periksa apakah ada tag {{...}} yang terpecah antar-paragraf
+  let hasSplitTag = false;
+  if (numAnak > 1) {
+    for (let i = 0; i < numAnak; i++) {
+      const ch = cell.getChild(i);
+      if (ch.getType() === DocumentApp.ElementType.PARAGRAPH) {
+        const pt = ch.asParagraph().getText();
+        const opens = (pt.match(/\{\{/g) || []).length;
+        const closes = (pt.match(/\}\}/g) || []).length;
+        if (opens !== closes) {
+          hasSplitTag = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // Sel rumus multi-baris: HANYA jika sel memiliki lebih dari 1 paragraf, bukan gambar/ttd/foto/identitas/tanda tangan,
+  // dan tag rumusnya terpecah antar-baris (hasSplitTag) atau formula perhitungan multi-baris murni
+  const isFormulaCell = !hasImage && !isSignatureOrPhotoCell && (
+    hasSplitTag ||
+    (/\{\{[\s\S]*?\?[\s\S]*?:[\s\S]*?\}\}/.test(originalText) && !originalText.includes('{{nama')) ||
+    (/\{\{\s*(?:if|set|ak_|konversi|kumulatif|dpcp)\b/i.test(originalText) && hasSplitTag)
+  );
+
+  if (numAnak > 1 && isFormulaCell) {
+    // --- Sel rumus multi-baris: collapse ke SATU paragraf bersih tanpa baris kosong yang tersisa. ---
     let newText = originalText;
     let m;
     TAG_REGEX.lastIndex = 0;
@@ -393,45 +452,44 @@ function renderCellTextInPlace_(cell, dataContext) {
       }
       newText = newText.split(m[0]).join(value);
     }
-    if (newText !== originalText) {
-      cell.clear();
-      const newP = cell.appendParagraph(newText || ' ');
-      const isOpsiB = String(dataContext.sub_layanan || dataContext.sub_menu || dataContext.subLayanan || '').toLowerCase().includes('kumulatif');
-      if (isOpsiB) {
-        enforceMinFontSizeInParagraph_(newP, 9);
-      }
+    cell.setText(newText ? newText.trim() : ' ');
+    if (isOpsiB && cell.getNumChildren() > 0 && cell.getChild(0).getType() === DocumentApp.ElementType.PARAGRAPH) {
+      enforceMinFontSizeInParagraph_(cell.getChild(0).asParagraph(), 9);
     }
-    return;
+    return true;
   }
 
-  // --- Sel biasa (label+nilai, blok tanda tangan, dsb.): isi tag PER PARAGRAF, struktur baris
-  // template dipertahankan PERSIS -- tidak ada paragraf atau gambar yang digabung/dihapus. ---
+  // --- Sel biasa (label+nilai, paragraf tunggal, blok tanda tangan, dsb.): isi tag PER PARAGRAF ---
   for (let i = 0; i < numAnak; i++) {
     const child = cell.getChild(i);
     if (child.getType() !== DocumentApp.ElementType.PARAGRAPH) continue;
     const paragraph = child.asParagraph();
     const paraText = paragraph.getText();
-    if (paraText.indexOf('{{') === -1) continue; // paragraf tanpa tag -- JANGAN disentuh
-
-    let m2;
-    TAG_REGEX.lastIndex = 0;
-    while ((m2 = TAG_REGEX.exec(paraText)) !== null) {
-      const rawExpr = m2[1];
-      let value;
-      try {
-        value = evaluateAndFormat_(rawExpr, dataContext);
-      } catch (e) {
-        value = `[ERROR:${rawExpr}]`;
-      }
-      const pattern = '\\{\\{\\s*' + escapeRegex_(rawExpr) + '\\s*\\}\\}';
-      const repVal = escapeReplacement_(value);
-      try {
-        paragraph.replaceText(pattern, repVal);
-      } catch (e) {
-        paragraph.replaceText(pattern, repVal === '' ? ' ' : repVal);
+    if (paraText.indexOf('{{') !== -1) {
+      let m2;
+      TAG_REGEX.lastIndex = 0;
+      while ((m2 = TAG_REGEX.exec(paraText)) !== null) {
+        const rawExpr = m2[1];
+        let value;
+        try {
+          value = evaluateAndFormat_(rawExpr, dataContext);
+        } catch (e) {
+          value = `[ERROR:${rawExpr}]`;
+        }
+        const pattern = '\\{\\{\\s*' + escapeRegex_(rawExpr) + '\\s*\\}\\}';
+        const repVal = escapeReplacement_(value);
+        try {
+          paragraph.replaceText(pattern, repVal);
+        } catch (e) {
+          paragraph.replaceText(pattern, repVal === '' ? ' ' : repVal);
+        }
       }
     }
+    if (isOpsiB) {
+      enforceMinFontSizeInParagraph_(paragraph, 9);
+    }
   }
+  return false;
 }
 
 function enforceMinFontSizeInContainer_(container, targetSize) {
@@ -464,16 +522,20 @@ function enforceMinFontSizeInParagraph_(paragraph, targetSize) {
   targetSize = targetSize || 9;
   if (!paragraph) return;
   try {
-    const numChildren = paragraph.getNumChildren();
-    for (let i = 0; i < numChildren; i++) {
-      const child = paragraph.getChild(i);
-      if (child.getType() === DocumentApp.ElementType.TEXT) {
-        const textEl = child.asText();
-        textEl.setFontSize(targetSize);
-      }
+    const textEl = paragraph.editAsText();
+    if (textEl && textEl.getText().length > 0) {
+      textEl.setFontSize(targetSize);
     }
   } catch (e) {
-    // ignore
+    try {
+      const numChildren = paragraph.getNumChildren();
+      for (let i = 0; i < numChildren; i++) {
+        const child = paragraph.getChild(i);
+        if (child.getType() === DocumentApp.ElementType.TEXT) {
+          child.asText().setFontSize(targetSize);
+        }
+      }
+    } catch (_) {}
   }
 }
 
@@ -524,8 +586,10 @@ function evaluateAndFormat_(rawExpr, dataContext) {
   // auto-format tanggal jika key diawali tgl_ / tmt_, dan TIDAK ada filter.
   const isBareIdentifier = /^[A-Za-z_][A-Za-z0-9_]*$/.test(mainExpr);
   if (isBareIdentifier && filters.length === 0) {
-    const isDateField = CONFIG.DATE_TAG_PREFIXES.some(p => mainExpr.indexOf(p) === 0);
     const raw = dataContext[mainExpr];
+    const isFamilyDateField = ['tgl_lahir_pasangan', 'tgl_kawin', 'tgl_cerai', 'tg_lahir_anak', 'tgl_lahir_anak'].indexOf(mainExpr.toLowerCase()) !== -1;
+    if (isFamilyDateField) return (typeof pensiunGen_formatTanggalSlash_ === 'function') ? pensiunGen_formatTanggalSlash_(raw) : (raw || '-');
+    const isDateField = CONFIG.DATE_TAG_PREFIXES.some(p => mainExpr.indexOf(p) === 0);
     if (isDateField) return formatTanggalIndonesia_(raw);
     return raw === undefined || raw === null ? '' : String(raw);
   }
@@ -538,8 +602,10 @@ function evaluateAndFormat_(rawExpr, dataContext) {
   const dropdownMatch = mainExpr.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*\[[^\]]*\]$/);
   if (dropdownMatch && filters.length === 0) {
     const key = dropdownMatch[1];
-    const isDateField = CONFIG.DATE_TAG_PREFIXES.some(p => key.indexOf(p) === 0);
     const raw = dataContext[key];
+    const isFamilyDateField = ['tgl_lahir_pasangan', 'tgl_kawin', 'tgl_cerai', 'tg_lahir_anak', 'tgl_lahir_anak'].indexOf(key.toLowerCase()) !== -1;
+    if (isFamilyDateField) return (typeof pensiunGen_formatTanggalSlash_ === 'function') ? pensiunGen_formatTanggalSlash_(raw) : (raw || '-');
+    const isDateField = CONFIG.DATE_TAG_PREFIXES.some(p => key.indexOf(p) === 0);
     if (isDateField) return formatTanggalIndonesia_(raw);
     return raw === undefined || raw === null ? '' : String(raw);
   }

@@ -156,9 +156,9 @@ function renderTemplateCopy_(templateFileId, dataContext, tempName, preProcessFn
   renderDocumentBody_(body, dataContext);
   // Proses juga header & footer bila ada tag di sana
   const header = doc.getHeader();
-  if (header) renderDocumentBody_(header, dataContext);
+  if (header && header.getText().indexOf('{{') !== -1) renderDocumentBody_(header, dataContext);
   const footer = doc.getFooter();
-  if (footer) renderDocumentBody_(footer, dataContext);
+  if (footer && footer.getText().indexOf('{{') !== -1) renderDocumentBody_(footer, dataContext);
 
   doc.saveAndClose();
   return copy; // File Drive
@@ -187,10 +187,21 @@ function buildEntriesContexts_(sessionToken, employeeSession, payload) {
       let employee = e.employee;
       if (!employee) {
         try {
-          employee = targetNip ? getEmployeeFullData(sessionToken, targetNip) : employeeSession;
+          employee = targetNip ? getEmployeeFullData(sessionToken, targetNip) : null;
         } catch (_) {
-          employee = employeeSession || {};
+          employee = null;
         }
+      }
+      const namaDariForm = fd.nama_lengkap || fd.nama || '';
+      if (!employee) {
+        employee = {
+          nama_lengkap: namaDariForm || employeeSession?.nama_lengkap || employeeSession?.nama || '',
+          nama: namaDariForm || employeeSession?.nama || '',
+          nip: targetNip || employeeSession?.nip || ''
+        };
+      } else if (namaDariForm) {
+        employee.nama_lengkap = namaDariForm;
+        employee.nama = namaDariForm;
       }
       return {
         employee: employee,
@@ -214,9 +225,9 @@ function renderMultiEntryDocument_(templateFileId, entries, tempName) {
   const mainDoc = DocumentApp.openById(mainCopy.getId());
   renderDocumentBody_(mainDoc.getBody(), entries[0].dataContext);
   const mainHeader = mainDoc.getHeader();
-  if (mainHeader) renderDocumentBody_(mainHeader, entries[0].dataContext);
+  if (mainHeader && mainHeader.getText().indexOf('{{') !== -1) renderDocumentBody_(mainHeader, entries[0].dataContext);
   const mainFooter = mainDoc.getFooter();
-  if (mainFooter) renderDocumentBody_(mainFooter, entries[0].dataContext);
+  if (mainFooter && mainFooter.getText().indexOf('{{') !== -1) renderDocumentBody_(mainFooter, entries[0].dataContext);
 
   // Entri ke-2 dst: render template SEKALI LAGI di salinan sementara
   // terpisah (supaya variabel "set" antar-entri tidak saling tertukar),
@@ -378,10 +389,14 @@ function generateDocument(sessionToken, payload) {
     const entries = buildEntriesContexts_(sessionToken, employeeSession, payload);
     if (!entries.length) return { success: false, message: 'Data isian kosong — minimal 1 entri diperlukan.' };
 
-    const namaUtama = entries[0].employee.nama_lengkap || entries[0].employee.nama || 'pegawai';
+    const ctx0 = entries[0].dataContext || {};
+    const emp0 = entries[0].employee || {};
+    const fd0 = (payload.entries && payload.entries[0] && (payload.entries[0].formData || payload.entries[0].dataCtx)) || payload.formData || payload.dataCtx || {};
+    const namaUtama = ctx0.nama_lengkap || fd0.nama_lengkap || emp0.nama_lengkap || ctx0.nama || fd0.nama || emp0.nama || 'pegawai';
+    const nipUtama = ctx0.nip || fd0.nip || emp0.nip || '';
     const fileNameBase = entries.length > 1
       ? `${namaUtama}-dkk-${entries.length}data-${payload.subLayanan}`
-      : `${namaUtama}-${entries[0].employee.nip}-${payload.subLayanan}`;
+      : `${namaUtama}-${nipUtama}-${payload.subLayanan}`;
     const fileName = sanitizeFileName_(fileNameBase);
 
     const docCopy = renderMultiEntryDocument_(payload.templateFileId, entries, fileName);
@@ -410,8 +425,11 @@ function generateDocument(sessionToken, payload) {
       nipYangDigenerate.forEach(nip => tandaiOpsiUsulanKpSelesai_(nip, payload.subLayanan, employeeSession.nip));
     }
 
-    const userRole = getUserRole_(employeeSession.nip);
-    const isNormalOrUser = (userRole === 'normal' || userRole === 'user');
+    const userRole = (employeeSession && employeeSession.role) || getUserRole_(employeeSession.nip);
+    const subLayananStr = String(payload.subLayanan || '').trim();
+    const isBuatSk = (layanan === 'Buat SK dan Surat' || ['SK CPTU', 'SK PTU 100%', 'SPMT', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU'].indexOf(subLayananStr) !== -1 || subLayananStr.toLowerCase().indexOf('cptu') !== -1 || subLayananStr.toLowerCase().indexOf('bayangan') !== -1 || subLayananStr.toLowerCase().indexOf('spmt') !== -1);
+    const forceGdocs = isBuatSk || payload.tipeTemplate === 'gdocs' || payload.tipe === 'gdocs' || payload.outputType === 'gdocs';
+    const isNormalOrUser = !forceGdocs && (userRole === 'normal' || userRole === 'user');
 
     if (isNormalOrUser) {
       // Konversi ke PDF
@@ -439,7 +457,8 @@ function generateDocument(sessionToken, payload) {
         outputType: 'pdf'
       };
     } else {
-      // Admin / Super Admin: Tetap kembalikan Google Docs
+      // Admin / Super Admin atau Buat SK / GDocs: Tetap kembalikan Google Docs
+      const gdocsEditUrl = `https://docs.google.com/document/d/${docCopy.getId()}/edit`;
       return {
         success: true,
         message: entries.length > 1
@@ -447,7 +466,9 @@ function generateDocument(sessionToken, payload) {
           : 'Dokumen berhasil dibuat.',
         fileId: docCopy.getId(),
         fileName: fileName,
-        viewUrl: docCopy.getUrl(),
+        viewUrl: gdocsEditUrl,
+        gdocsUrl: gdocsEditUrl,
+        docUrl: gdocsEditUrl,
         jumlahEntri: entries.length,
         outputType: 'gdocs'
       };
@@ -716,6 +737,43 @@ function generateSkFromUsulan(sessionToken, templateFileId, dataCtx) {
   } catch (err) {
     return { success: false, message: 'Gagal generate SK di Google Drive: ' + err.message };
   }
+}
+
+/**
+ * Bangun dataContext untuk dokumen Kontrak/Perjanjian Kerja (Google Docs).
+ */
+function buildKontrakDataContext(usulan, formData, employee) {
+  const fd = Object.assign({}, employee || {}, formData || (usulan ? usulan.form_data : {}) || {});
+  const nipVal = String((usulan && usulan.nip) || fd.nip || '').trim();
+  const nikVal = String(fd.nik || (usulan && usulan.nik) || (usulan && usulan.form_data && usulan.form_data.nik) || '').trim();
+  const namaVal = String(fd.nama_lengkap || fd.nama || (usulan && usulan.nama_lengkap) || '').trim();
+  const tglSekarang = formatTanggalIndonesia_(new Date());
+
+  const ctx = Object.assign({}, fd, {
+    nip: nipVal,
+    NIP: nipVal,
+    nppu: nipVal,
+    NPPU: nipVal,
+    nik: nikVal,
+    NIK: nikVal,
+    nik_ktp: nikVal,
+    NIK_KTP: nikVal,
+    nama: namaVal,
+    NAMA: namaVal,
+    nama_lengkap: namaVal,
+    NAMA_LENGKAP: namaVal,
+    pihak_kedua: namaVal,
+    PIHAK_KEDUA: namaVal,
+    tgl_buat: tglSekarang,
+    TGL_BUAT: tglSekarang,
+    tanggal_buat: tglSekarang,
+    TANGGAL_BUAT: tglSekarang,
+    tgl_sk: tglSekarang,
+    TGL_SK: tglSekarang,
+    tanggal: tglSekarang,
+    TANGGAL: tglSekarang
+  });
+  return ctx;
 }
 
 /**

@@ -384,6 +384,7 @@ ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS file_sk_pengaktifan_url         
 ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS file_sk_pengaktifan_approved      BOOLEAN DEFAULT FALSE;
 ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS file_penyetaraan_ijazah_url       TEXT;
 ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS file_penyetaraan_ijazah_approved  BOOLEAN DEFAULT FALSE;
+ALTER TABLE usulan_pmk ADD COLUMN IF NOT EXISTS alasan_penolakan                  TEXT;
 
 -- Migrasi aman untuk database usulan_kontrak yang sudah ada
 ALTER TABLE usulan_kontrak ADD COLUMN IF NOT EXISTS form_data                   JSONB DEFAULT '{}';
@@ -609,9 +610,15 @@ ON CONFLICT (nama) DO NOTHING;
 -- Add tampil_di_usulan_user column: admin can toggle jenis surat to appear in user's Usul SK dropdown
 ALTER TABLE jenis_surat ADD COLUMN IF NOT EXISTS tampil_di_usulan_user BOOLEAN DEFAULT FALSE;
 ALTER TABLE jenis_surat ADD COLUMN IF NOT EXISTS urutan INTEGER DEFAULT 0;
+ALTER TABLE jenis_surat ADD COLUMN IF NOT EXISTS tipe_format TEXT DEFAULT 'normal';
 
 -- Set default user-visible items (common proposal types)
 UPDATE jenis_surat SET tampil_di_usulan_user = TRUE WHERE nama IN ('SK Tutam Kadep & Kaprodi', 'SK Tutam Sekprodi', 'Surat PLT', 'Surat PLH');
+
+-- Set default format jenis surat
+UPDATE jenis_surat SET tipe_format = 'kolektif' WHERE nama IN ('SK CPTU', 'SK PTU 100%', 'SPMT', 'SPMT CPTU', 'SK CPTU Bayangan', 'SK Bayangan CPTU');
+UPDATE jenis_surat SET tipe_format = 'banyak_lampiran' WHERE nama IN ('SK Tutam Kadep & Kaprodi', 'SK Tutam Struktural', 'SK Tutam Dekan Wadek');
+UPDATE jenis_surat SET tipe_format = 'normal' WHERE tipe_format IS NULL;
 
 ALTER TABLE jenis_surat ENABLE ROW LEVEL SECURITY;
 DO $$ BEGIN
